@@ -46,6 +46,45 @@
 
 ---
 
+## 图片资源放置位置（登录 / 注册）
+
+HarmonyOS 模块内的图片请放在 **`entry/src/main/resources/base/media/`** 目录下（不是 Web 项目的 `assets/images`）。
+
+| 文件 | 资源名 | 代码引用 | 说明 |
+|------|--------|----------|------|
+| `login_bg.png` | `login_bg` | `$r('app.media.login_bg')` | 登录页全屏背景（暖色图书馆插画） |
+| `app_logo.png` | `app_logo` | `$r('app.media.app_logo')` | 应用 Logo（心形 + 彩色便签） |
+
+命名规则：小写字母、数字、下划线；引用时**不带扩展名**。替换图片后重新编译即可生效。
+
+其他密度或夜间模式可扩展为 `resources/xxhdpi/media/`、`resources/dark/media/` 等，当前工程使用 `base` 默认资源即可。
+
+---
+
+## 认证页面
+
+| 页面 | 路径 | 说明 |
+|------|------|------|
+| 登录 | `pages/Login.ets` | 启动首屏，背景图 + 半透明卡片表单 |
+| 注册 | `pages/Register.ets` | 分步指示、验证码倒计时（演示）、协议勾选 |
+| 主页 | `pages/Index.ets` | 登录/注册成功后 `router.replaceUrl` 进入 |
+
+共享组件：`components/auth/AuthInput.ets`，主题色：`common/AuthTheme.ets`。
+
+网络层（已对接 Spring Boot）：
+
+| 文件 | 说明 |
+|------|------|
+| `common/ApiConfig.ets` | 读取本地 API 地址 |
+| `common/ApiConfig.local.ets` | **个人配置**（Git 忽略，从 example 复制） |
+| `service/HttpClient.ets` | HTTP 封装 |
+| `service/AuthApi.ets` | 登录 / 注册 / 验证码接口 |
+| `common/AuthSession.ets` | Token 与用户信息持久化 |
+
+**克隆仓库后请先阅读** [docs/本地配置注意事项.md](docs/本地配置注意事项.md)。
+
+---
+
 ## 快速开始
 
 1. 克隆仓库到本地：
@@ -86,7 +125,13 @@ MoodWalls/
 │   │   │   ├── entrybackupability/
 │   │   │   │   └── EntryBackupAbility.ets
 │   │   │   ├── pages/
+│   │   │   │   ├── Login.ets          # 登录页（应用启动入口）
+│   │   │   │   ├── Register.ets       # 注册页
 │   │   │   │   └── Index.ets          # 主页面：Tab 路由与全局状态
+│   │   │   ├── common/
+│   │   │   │   └── AuthTheme.ets      # 登录注册主题色
+│   │   │   ├── components/auth/
+│   │   │   │   └── AuthInput.ets      # 表单输入框
 │   │   │   ├── tabs/
 │   │   │   │   ├── FeedTab.ets        # 心墙列表
 │   │   │   │   ├── MapTab.ets         # 校园情绪地图
@@ -104,7 +149,7 @@ MoodWalls/
 │   │   └── resources/
 │   │       └── base/
 │   │           ├── element/           # 颜色、字符串
-│   │           ├── media/             # 启动图、模块图标
+│   │           ├── media/             # 图片资源（login_bg、app_logo 等）
 │   │           └── profile/
 │   │               └── main_pages.json
 │   ├── src/ohosTest/                  # 仪器化测试
@@ -186,9 +231,20 @@ flowchart TB
 
 ---
 
+## 后端服务（Spring Boot）
+
+后端代码位于 **`backend/`** 目录，使用 Spring Boot + MySQL。
+
+数据库密码、JWT、局域网 IP 等个人配置见 [docs/本地配置注意事项.md](docs/本地配置注意事项.md)。
+
+启动方式与 API 说明见 [backend/README.md](backend/README.md)。
+
+---
+
 ## 后续可扩展方向
 
-- [ ] 接入后端 API：用户鉴权、便签 CRUD、点赞同步
+- [x] 接入后端 API：用户鉴权（登录 / 注册 / JWT）
+- [ ] 便签 CRUD、点赞同步
 - [ ] 使用 `@ohos.data.relationalStore` 或 Preferences 做本地缓存
 - [ ] 地图 Tab 对接真实校园 POI / 热力图数据
 - [ ] 完善 `EntryAbility_label` 等资源文案与无障碍

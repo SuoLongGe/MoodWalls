@@ -1,3 +1,5 @@
+import { AuthSession } from '../common/AuthSession'
+import { UiHelper } from '../common/UiHelper'
 import { MoodWallHeader } from '../components/MoodWallHeader'
 import { MoodWallTabBar } from '../components/MoodWallTabBar'
 import { SupportDialog } from '../components/SupportDialog'
@@ -20,6 +22,12 @@ struct Index {
   @State supportTitle: string = ''
   @State supportMessage: string = ''
   @State notes: Array<NoteItem> = INITIAL_NOTES
+
+  aboutToAppear(): void {
+    if (!AuthSession.isLoggedIn()) {
+      UiHelper.replaceTo('pages/Login')
+    }
+  }
 
   getGreeting(): string {
     const hour: number = new Date().getHours()

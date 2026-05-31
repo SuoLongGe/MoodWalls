@@ -1,5 +1,6 @@
 @Component
 export struct MoodWallHeader {
+  @StorageLink('userNickname') userNickname: string = '同学'
   @Prop currentTab: number = 0
   @Prop greeting: string = ''
   @Prop anxiousPercent: number = 0
@@ -52,7 +53,7 @@ export struct MoodWallHeader {
           }
 
           Column({ space: 4 }) {
-            Text(`${this.greeting}，蓝色小鱼`)
+            Text(`${this.greeting}，${this.userNickname}`)
               .fontSize(20)
               .fontWeight(FontWeight.Bold)
               .fontColor('#22352F')

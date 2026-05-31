@@ -11,6 +11,10 @@
     {
       "name": "EntryAbility_label",
       "value": "label"
+    },
+    {
+      "name": "internet_permission_reason",
+      "value": "用于连接校园心灵墙服务器，完成登录注册与数据同步"
     }
   ]
 }

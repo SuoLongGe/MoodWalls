@@ -1,0 +1,13 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.log
+*.jar
+*.war
+.idea/
+*.iml
+.DS_Store
+
+# 本地个人配置（数据库密码、JWT 等）
+src/main/resources/application-local.yml
+application-local.yml

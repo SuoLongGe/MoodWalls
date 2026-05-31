@@ -1,0 +1,15 @@
+export class AuthTheme {
+  static readonly PRIMARY: string = '#2D74C4'
+  static readonly PRIMARY_DARK: string = '#1F5F9E'
+  static readonly TITLE: string = '#1E4A7A'
+  static readonly SUBTITLE: string = '#7A95B0'
+  static readonly INPUT_BG: string = '#EEF4F8'
+  static readonly INPUT_TEXT: string = '#2C3E50'
+  static readonly PLACEHOLDER: string = '#9AABB8'
+  static readonly CARD_BG: string = 'rgba(255, 255, 255, 0.88)'
+  static readonly REGISTER_BG: string = '#FFF8F0'
+  static readonly VERIFY_BTN: string = '#3D6B5C'
+  static readonly LINK_MUTED: string = '#8A9AAA'
+  static readonly DIVIDER: string = '#D8E2EA'
+  static readonly OVERLAY: string = 'rgba(255, 236, 220, 0.35)'
+}

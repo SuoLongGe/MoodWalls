@@ -1,0 +1,12 @@
+# 复制本文件为 application-local.yml（同目录），并填入你的本地配置。
+# application-local.yml 已被 Git 忽略，不会提交到仓库。
+
+spring:
+  datasource:
+    username: root
+    password: your_mysql_password
+
+moodwalls:
+  jwt:
+    secret: your-random-jwt-secret-at-least-32-chars
+  server-host: 192.168.1.100

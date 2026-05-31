@@ -2,6 +2,8 @@
 /oh_modules
 /local.properties
 /.idea
+**/.idea/
+*.iml
 **/build
 /.hvigor
 .cxx
@@ -10,3 +12,20 @@
 /.clang-tidy
 **/.test
 /.appanalyzer
+
+# Spring Boot backend
+/backend/target/
+
+# ========== 个人本地配置（勿提交） ==========
+# 后端：数据库密码、JWT 密钥、本机 IP
+/backend/src/main/resources/application-local.yml
+
+# 前端：后端 API 局域网地址
+/entry/src/main/ets/common/ApiConfig.local.ets
+
+# 环境变量与密钥
+.env
+.env.*
+!.env.example
+*.pem
+*.key
