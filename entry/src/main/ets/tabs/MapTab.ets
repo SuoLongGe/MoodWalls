@@ -3,7 +3,7 @@ import { MoodApi } from '../service/MoodApi'
 
 @Component
 export struct MapTab {
-  @Prop zones: Array<ZoneCard> = []
+  @State zones: Array<ZoneCard> = []
   @State mapSummary: string = ''
   @State loading: boolean = true
   @State showZoneSheet: boolean = false
@@ -25,8 +25,9 @@ export struct MapTab {
         this.zones = res.zones
         this.loading = false
       })
-      .catch(() => {
+      .catch((err: Error) => {
         this.loading = false
+        console.error(`loadZones failed: ${err.message}`)
       })
   }
 

@@ -8,8 +8,6 @@ import {
   NotificationListResponse
 } from '../model/MoodWallTypes'
 
-const EMPTY_BODY: Record<string, Object> = {}
-
 export class MoodApi {
 
   static getMapZones(): Promise<MapZonesResponse> {
@@ -21,7 +19,7 @@ export class MoodApi {
   }
 
   static supportPost(postId: number, token: string): Promise<SupportResponse> {
-    return HttpClient.post<SupportResponse>(`/posts/${postId}/support`, EMPTY_BODY, token)
+    return HttpClient.postEmpty<SupportResponse>(`/posts/${postId}/support`, token)
   }
 
   static getWeeklyReport(token: string): Promise<WeeklyReportResponse> {
@@ -37,10 +35,10 @@ export class MoodApi {
   }
 
   static readAllNotifications(token: string): Promise<Object> {
-    return HttpClient.post<Object>('/notifications/read-all', EMPTY_BODY, token)
+    return HttpClient.postEmpty<Object>('/notifications/read-all', token)
   }
 
   static readNotification(id: number, token: string): Promise<Object> {
-    return HttpClient.post<Object>(`/notifications/${id}/read`, EMPTY_BODY, token)
+    return HttpClient.postEmpty<Object>(`/notifications/${id}/read`, token)
   }
 }

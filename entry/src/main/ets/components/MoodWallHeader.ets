@@ -1,4 +1,5 @@
 import { getAvatarResource } from '../common/AvatarResources'
+import { UiHelper } from '../common/UiHelper'
 
 @Component
 export struct MoodWallHeader {
@@ -71,7 +72,7 @@ export struct MoodWallHeader {
             .backgroundColor('#F3F6F5')
             .borderRadius(18)
             .onClick(() => {
-              router.pushUrl({ url: 'pages/NotificationPage' })
+              UiHelper.pushTo('pages/NotificationPage')
             })
 
           if (this.unreadCount > 0) {

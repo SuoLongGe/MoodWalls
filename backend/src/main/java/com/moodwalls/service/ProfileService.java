@@ -6,7 +6,6 @@ import com.moodwalls.dto.PostListResponseDto;
 import com.moodwalls.dto.PostSummaryDto;
 import com.moodwalls.dto.ProfileOverviewDto;
 import com.moodwalls.dto.WeekStatsDto;
-import com.moodwalls.dto.WeeklyReportDto;
 import com.moodwalls.entity.Post;
 import com.moodwalls.entity.User;
 import com.moodwalls.entity.UserDailyMood;
@@ -123,39 +122,6 @@ public class ProfileService {
         response.setSize(safeSize);
         response.setHasMore(result.hasNext());
         return response;
-    }
-
-    public WeeklyReportDto getWeeklyReport(Long userId) {
-        LocalDateTime weekStart = LocalDate.now().minusDays(6).atStartOfDay();
-        LocalDateTime weekEnd = LocalDate.now().plusDays(1).atStartOfDay();
-        List<Post> weekPosts = postRepository.findByUserIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
-                userId, STATUS_ACTIVE, weekStart, weekEnd);
-
-        Map<String, Integer> moodSummary = new HashMap<>();
-        moodSummary.put("calm", 0);
-        moodSummary.put("anxious", 0);
-        moodSummary.put("happy", 0);
-
-        for (Post post : weekPosts) {
-            if (MoodHelper.isCalmGroup(post.getMood())) {
-                moodSummary.merge("calm", 1, Integer::sum);
-            } else if (MoodHelper.isAnxiousGroup(post.getMood())) {
-                moodSummary.merge("anxious", 1, Integer::sum);
-            } else if (MoodHelper.isHappyGroup(post.getMood())) {
-                moodSummary.merge("happy", 1, Integer::sum);
-            }
-        }
-
-        WeeklyReportDto dto = new WeeklyReportDto();
-        dto.setPostCount(weekPosts.size());
-        dto.setMoodSummary(moodSummary);
-        dto.setReport(MoodHelper.buildWeeklyReport(
-                moodSummary.get("calm"),
-                moodSummary.get("anxious"),
-                moodSummary.get("happy"),
-                weekPosts.size()
-        ));
-        return dto;
     }
 
     private User requireUser(Long userId) {

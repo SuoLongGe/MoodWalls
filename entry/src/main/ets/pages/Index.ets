@@ -3,7 +3,7 @@ import { UiHelper } from '../common/UiHelper'
 import { MoodWallHeader } from '../components/MoodWallHeader'
 import { MoodWallTabBar } from '../components/MoodWallTabBar'
 import { SupportDialog } from '../components/SupportDialog'
-import { INITIAL_NOTES, LOCATION_OPTIONS, MOOD_OPTIONS, ZONE_CARDS } from '../mock/MoodWallData'
+import { INITIAL_NOTES, LOCATION_OPTIONS, MOOD_OPTIONS } from '../mock/MoodWallData'
 import { MoodOption, NoteItem } from '../model/MoodWallTypes'
 import { MoodApi } from '../service/MoodApi'
 import { FeedTab } from '../tabs/FeedTab'
@@ -178,7 +178,6 @@ struct Index {
               })
             } else if (this.currentTab === 1) {
               MapTab({
-                zones: ZONE_CARDS,
                 onNavigateToPost: () => {
                   this.currentTab = 2
                 }
