@@ -9,6 +9,7 @@ export struct MoodWallHeader {
   @Prop anxiousPercent: number = 0
   @Prop calmPercent: number = 0
   @Prop happyPercent: number = 0
+  @Prop unreadCount: number = 0
 
   getSubtitle(): string {
     if (this.currentTab === 1) {
@@ -61,13 +62,31 @@ export struct MoodWallHeader {
           .layoutWeight(1)
         }
 
-        Text('通知')
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#31534A')
-          .padding({ left: 12, right: 12, top: 10, bottom: 10 })
-          .backgroundColor('#F3F6F5')
-          .borderRadius(18)
+        Stack() {
+          Text('通知')
+            .fontSize(12)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#31534A')
+            .padding({ left: 12, right: 12, top: 10, bottom: 10 })
+            .backgroundColor('#F3F6F5')
+            .borderRadius(18)
+            .onClick(() => {
+              router.pushUrl({ url: 'pages/NotificationPage' })
+            })
+
+          if (this.unreadCount > 0) {
+            Text(this.unreadCount > 99 ? '99+' : `${this.unreadCount}`)
+              .fontSize(9)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(Color.White)
+              .backgroundColor('#E17272')
+              .borderRadius(10)
+              .constraintSize({ minWidth: 18 })
+              .height(18)
+              .textAlign(TextAlign.Center)
+              .position({ x: this.unreadCount > 9 ? -10 : -6, y: -4 })
+          }
+        }
       }
       .justifyContent(FlexAlign.SpaceBetween)
       .width('100%')
