@@ -164,44 +164,16 @@ ON DUPLICATE KEY UPDATE title = VALUES(title);
 
 INSERT INTO location_zone_mappings (location_name, zone_key)
 VALUES
-  -- 学习与安静表达区域
   ('潇湘校区图书馆', 'library'),
-  ('岳麓山校区图书馆', 'library'),
-  ('潇湘校区A座教学楼', 'library'),
-  ('潇湘校区B座教学楼', 'library'),
-  ('潇湘校区C座教学楼', 'library'),
-  ('岳麓山校区科教南楼', 'library'),
-  ('岳麓山校区科教北楼', 'library'),
-  ('潇湘校区D座教学楼', 'library'),
+  ('中南讲堂', 'library'),
+  ('毓秀楼', 'library'),
 
-
-  -- 自然与散步区域
   ('观云池', 'lake'),
   ('荷花池', 'lake'),
 
-  -- 生活与日常区域
   ('升华学生生活服务广场', 'living'),
   ('升华学生公寓', 'living'),
   ('麓南校区二食堂', 'living'),
-  ('麓南校区八食堂', 'living'),
-
-  -- 活动与交流区域
-  ('中南讲堂', 'activity'),
-  ('毓秀楼', 'activity'),
-
-  -- 体育区域
-  ('鸟巢体育场', 'sports'),
-  ('潇湘校区体育馆', 'sports'),
-
-  -- 校史与人文区域
-  ('和平楼', 'history'),
-  ('民主楼', 'history'),
-  ('校本部大门', 'history'),
-  ('升华雕塑', 'history'),
-
-  -- 湘雅医学文化区域
-  ('湘雅红楼', 'medical'),
-
-  -- 铁道特色区域
-  ('天心校区铁路园', 'railway')
-ON DUPLICATE KEY UPDATE zone_key = VALUES(zone_key);
+  ('麓南校区八食堂', 'living')
+ON DUPLICATE KEY UPDATE
+  zone_key = VALUES(zone_key);
