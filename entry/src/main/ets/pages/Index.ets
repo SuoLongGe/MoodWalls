@@ -116,13 +116,15 @@ struct Index {
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
       Column() {
-        MoodWallHeader({
-          currentTab: this.currentTab,
-          greeting: this.getGreeting(),
-          anxiousPercent: this.getMoodPercent(['anxious', 'sad', 'tired']),
-          calmPercent: this.getMoodPercent(['calm', 'moved']),
-          happyPercent: this.getMoodPercent(['happy'])
-        })
+        if (this.currentTab !== 3) {
+          MoodWallHeader({
+            currentTab: this.currentTab,
+            greeting: this.getGreeting(),
+            anxiousPercent: this.getMoodPercent(['anxious', 'sad', 'tired']),
+            calmPercent: this.getMoodPercent(['calm', 'moved']),
+            happyPercent: this.getMoodPercent(['happy'])
+          })
+        }
 
         Scroll() {
           Column({ space: 16 }) {
@@ -149,14 +151,20 @@ struct Index {
               })
             } else {
               ProfileTab({
-                calmPercent: this.getMoodPercent(['calm', 'moved']),
-                anxiousPercent: this.getMoodPercent(['anxious', 'sad', 'tired']),
-                happyPercent: this.getMoodPercent(['happy']),
-                onOpenReport: () => this.openSupport()
+                onOpenReport: (report: string) => {
+                  this.supportTitle = '这一周的心情周报'
+                  this.supportMessage = report
+                  this.supportVisible = true
+                }
               })
             }
           }
-          .padding({ left: 16, right: 16, top: 10, bottom: 120 })
+          .padding({
+            left: 16,
+            right: 16,
+            top: this.currentTab === 3 ? 18 : 10,
+            bottom: 120
+          })
           .width('100%')
         }
         .scrollBar(BarState.Off)

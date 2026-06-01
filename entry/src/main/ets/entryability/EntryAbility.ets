@@ -10,6 +10,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate('isLoggedIn', false)
     AppStorage.setOrCreate('userNickname', '')
     AppStorage.setOrCreate('userAccount', '')
+    AppStorage.setOrCreate('userAvatarKey', '')
     AppStorage.setOrCreate('userId', 0)
     try {
       this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);

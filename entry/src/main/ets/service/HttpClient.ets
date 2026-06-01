@@ -3,11 +3,17 @@ import { BusinessError } from '@kit.BasicServicesKit'
 import { ApiConfig } from '../common/ApiConfig'
 import {
   ApiResponse,
+  ChangePasswordRequestBody,
   LoginRequestBody,
-  RegisterRequestBody
+  RegisterRequestBody,
+  UpdateProfileRequestBody
 } from '../model/AuthApiTypes'
 
-export type HttpRequestBody = RegisterRequestBody | LoginRequestBody
+export type HttpRequestBody =
+  RegisterRequestBody |
+  LoginRequestBody |
+  UpdateProfileRequestBody |
+  ChangePasswordRequestBody
 
 export class HttpClient {
 
@@ -15,8 +21,16 @@ export class HttpClient {
     return HttpClient.request<T>(path, http.RequestMethod.POST, body, token)
   }
 
+  static put<T>(path: string, body: HttpRequestBody, token: string): Promise<T> {
+    return HttpClient.request<T>(path, http.RequestMethod.PUT, body, token)
+  }
+
   static get<T>(path: string, token?: string): Promise<T> {
     return HttpClient.request<T>(path, http.RequestMethod.GET, undefined, token)
+  }
+
+  static postEmpty<T>(path: string, token?: string): Promise<T> {
+    return HttpClient.request<T>(path, http.RequestMethod.POST, undefined, token)
   }
 
   private static request<T>(

@@ -9,6 +9,7 @@ export interface UserProfile {
   nickname: string
   phone: string
   studentId: string | null
+  avatarKey: string
 }
 
 export interface AuthResult {
@@ -27,9 +28,20 @@ export interface RegisterRequestBody {
   captchaId: string
   captchaCode: string
   password: string
+  avatarKey: string
 }
 
 export interface LoginRequestBody {
   account: string
   password: string
+}
+
+export interface UpdateProfileRequestBody {
+  nickname: string
+  avatarKey: string
+}
+
+export interface ChangePasswordRequestBody {
+  oldPassword: string
+  newPassword: string
 }

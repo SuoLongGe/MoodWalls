@@ -2,8 +2,10 @@ package com.moodwalls.service;
 
 import com.moodwalls.dto.AuthResponse;
 import com.moodwalls.dto.CaptchaResponse;
+import com.moodwalls.dto.ChangePasswordRequest;
 import com.moodwalls.dto.LoginRequest;
 import com.moodwalls.dto.RegisterRequest;
+import com.moodwalls.dto.UpdateProfileRequest;
 import com.moodwalls.dto.UserProfile;
 import com.moodwalls.entity.User;
 import com.moodwalls.exception.BusinessException;
@@ -57,6 +59,8 @@ public class AuthService {
         user.setNickname(request.getNickname().trim());
         user.setPhone(request.getPhone());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        String avatarKey = request.getAvatarKey();
+        user.setAvatarKey(avatarKey == null || avatarKey.isBlank() ? "avatar_01" : avatarKey.trim());
 
         User saved = userRepository.save(user);
         String token = jwtTokenProvider.generateToken(saved.getId(), saved.getPhone());
@@ -79,6 +83,30 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(404, "用户不存在"));
         return UserProfile.from(user);
+    }
+
+    @Transactional
+    public UserProfile updateProfile(Long userId, UpdateProfileRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(404, "用户不存在"));
+        String nickname = request.getNickname().trim();
+        if (userRepository.existsByNicknameAndIdNot(nickname, userId)) {
+            throw new BusinessException(409, "该昵称已被使用");
+        }
+        user.setNickname(nickname);
+        user.setAvatarKey(request.getAvatarKey().trim());
+        return UserProfile.from(userRepository.save(user));
+    }
+
+    @Transactional
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(404, "用户不存在"));
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPasswordHash())) {
+            throw new BusinessException(400, "原密码不正确");
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 
     private Optional<User> findUserByAccount(String account) {
