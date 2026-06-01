@@ -1,13 +1,9 @@
 import { http } from '@kit.NetworkKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { ApiConfig } from '../common/ApiConfig'
-import {
-  ApiResponse,
-  LoginRequestBody,
-  RegisterRequestBody
-} from '../model/AuthApiTypes'
+import { ApiResponse } from '../model/AuthApiTypes'
 
-export type HttpRequestBody = RegisterRequestBody | LoginRequestBody
+export type HttpRequestBody = Object | null
 
 export class HttpClient {
 

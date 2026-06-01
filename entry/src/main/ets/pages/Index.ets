@@ -5,6 +5,7 @@ import { MoodWallTabBar } from '../components/MoodWallTabBar'
 import { SupportDialog } from '../components/SupportDialog'
 import { INITIAL_NOTES, LOCATION_OPTIONS, MOOD_OPTIONS, ZONE_CARDS } from '../mock/MoodWallData'
 import { MoodOption, NoteItem } from '../model/MoodWallTypes'
+import { MoodApi } from '../service/MoodApi'
 import { FeedTab } from '../tabs/FeedTab'
 import { MapTab } from '../tabs/MapTab'
 import { PostTab } from '../tabs/PostTab'
@@ -21,28 +22,37 @@ struct Index {
   @State supportVisible: boolean = false
   @State supportTitle: string = ''
   @State supportMessage: string = ''
+  @State supportLoading: boolean = false
   @State notes: Array<NoteItem> = INITIAL_NOTES
+  @State unreadCount: number = 0
 
   aboutToAppear(): void {
     if (!AuthSession.isLoggedIn()) {
       UiHelper.replaceTo('pages/Login')
     }
+    this.loadUnreadCount()
+  }
+
+  onPageShow(): void {
+    this.loadUnreadCount()
+  }
+
+  loadUnreadCount(): void {
+    const token: string = AuthSession.getToken()
+    if (token.length === 0) return
+    MoodApi.getUnreadCount(token)
+      .then((res) => {
+        this.unreadCount = res.count
+      })
+      .catch(() => {})
   }
 
   getGreeting(): string {
     const hour: number = new Date().getHours()
-    if (hour < 6) {
-      return '凌晨好'
-    }
-    if (hour < 11) {
-      return '早上好'
-    }
-    if (hour < 14) {
-      return '中午好'
-    }
-    if (hour < 18) {
-      return '下午好'
-    }
+    if (hour < 6) return '凌晨好'
+    if (hour < 11) return '早上好'
+    if (hour < 14) return '中午好'
+    if (hour < 18) return '下午好'
     return '晚上好'
   }
 
@@ -58,14 +68,48 @@ struct Index {
   }
 
   openSupport(note?: NoteItem): void {
+    const token: string = AuthSession.getToken()
     if (note) {
       this.supportTitle = `给「${note.moodLabel}」的回信`
-      this.supportMessage = '你已经很努力了。先把这份情绪放在这里，慢慢呼吸一下，再给自己一点点缓冲空间。校园里也有人和你一样，正在慢慢穿过这段情绪。'
+      this.supportMessage = '正在倾听...'
+      this.supportLoading = true
+      this.supportVisible = true
+
+      if (token.length > 0) {
+        MoodApi.supportPost(note.id, token)
+          .then((res) => {
+            this.supportMessage = res.response
+            this.supportLoading = false
+          })
+          .catch(() => {
+            this.supportMessage = '你已经很努力了。先把这份情绪放在这里，慢慢呼吸一下，再给自己一点点缓冲空间。'
+            this.supportLoading = false
+          })
+      } else {
+        this.supportMessage = '你已经很努力了。先把这份情绪放在这里，慢慢呼吸一下，再给自己一点点缓冲空间。'
+        this.supportLoading = false
+      }
     } else {
       this.supportTitle = '这一周的心情周报'
-      this.supportMessage = '这周你的情绪底色更偏平静，说明你在忙碌里依然保留了稳定自己的能力。焦虑并不代表脆弱，它只是提醒你最近真的很辛苦。'
+      this.supportMessage = '正在生成周报...'
+      this.supportLoading = true
+      this.supportVisible = true
+
+      if (token.length > 0) {
+        MoodApi.getWeeklyReport(token)
+          .then((res) => {
+            this.supportMessage = res.report
+            this.supportLoading = false
+          })
+          .catch(() => {
+            this.supportMessage = '这周你的情绪底色更偏平静，说明你在忙碌里依然保留了稳定自己的能力。'
+            this.supportLoading = false
+          })
+      } else {
+        this.supportMessage = '这周你的情绪底色更偏平静，说明你在忙碌里依然保留了稳定自己的能力。'
+        this.supportLoading = false
+      }
     }
-    this.supportVisible = true
   }
 
   likeNote(noteId: number): void {
@@ -91,9 +135,7 @@ struct Index {
 
   publishNote(): void {
     const content: string = this.draftText.trim()
-    if (content.length === 0) {
-      return
-    }
+    if (content.length === 0) return
 
     const mood: MoodOption = this.getSelectedMood()
     const nextItem: NoteItem = {
@@ -121,7 +163,8 @@ struct Index {
           greeting: this.getGreeting(),
           anxiousPercent: this.getMoodPercent(['anxious', 'sad', 'tired']),
           calmPercent: this.getMoodPercent(['calm', 'moved']),
-          happyPercent: this.getMoodPercent(['happy'])
+          happyPercent: this.getMoodPercent(['happy']),
+          unreadCount: this.unreadCount
         })
 
         Scroll() {
@@ -170,7 +213,8 @@ struct Index {
       SupportDialog({
         visible: $supportVisible,
         title: this.supportTitle,
-        message: this.supportMessage
+        message: this.supportMessage,
+        loading: this.supportLoading
       })
     }
     .width('100%')

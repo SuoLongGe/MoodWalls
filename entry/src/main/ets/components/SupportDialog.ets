@@ -3,6 +3,7 @@ export struct SupportDialog {
   @Link visible: boolean
   @Prop title: string = ''
   @Prop message: string = ''
+  @Prop loading: boolean = false
 
   build() {
     if (this.visible) {
@@ -33,10 +34,25 @@ export struct SupportDialog {
             .fontSize(13)
             .fontColor('#73A18F')
 
-          Text(this.message)
-            .fontSize(14)
-            .lineHeight(24)
-            .fontColor('#43524E')
+          if (this.loading) {
+            Column({ space: 10 }) {
+              LoadingProgress()
+                .width(32)
+                .height(32)
+                .color('#31534A')
+              Text('正在倾听...')
+                .fontSize(13)
+                .fontColor('#7A8784')
+            }
+            .width('100%')
+            .padding({ top: 20, bottom: 20 })
+            .justifyContent(FlexAlign.Center)
+          } else {
+            Text(this.message)
+              .fontSize(14)
+              .lineHeight(24)
+              .fontColor('#43524E')
+          }
 
           Text('收下这封回信')
             .width('100%')
@@ -47,8 +63,11 @@ export struct SupportDialog {
             .padding({ top: 12, bottom: 12 })
             .backgroundColor('#31534A')
             .borderRadius(22)
+            .opacity(this.loading ? 0.45 : 1)
             .onClick(() => {
-              this.visible = false
+              if (!this.loading) {
+                this.visible = false
+              }
             })
         }
         .width('84%')
