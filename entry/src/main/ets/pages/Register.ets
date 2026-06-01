@@ -1,5 +1,6 @@
 import { AuthTheme } from '../common/AuthTheme'
 import { AuthSession } from '../common/AuthSession'
+import { AVATAR_KEYS, getAvatarResource } from '../common/AvatarResources'
 import { UiHelper } from '../common/UiHelper'
 import { AuthInput } from '../components/auth/AuthInput'
 import { AuthResult, CaptchaResult } from '../model/AuthApiTypes'
@@ -8,12 +9,14 @@ import { AuthApi } from '../service/AuthApi'
 @Entry
 @Component
 struct Register {
+  @State registerStep: number = 1
   @State nickname: string = ''
   @State phone: string = ''
   @State captchaCode: string = ''
   @State captchaId: string = ''
   @State captchaText: string = '----'
   @State password: string = ''
+  @State selectedAvatarKey: string = 'avatar_01'
   @State agreeTerms: boolean = false
   @State loading: boolean = false
   @State loadingCaptcha: boolean = false
@@ -38,20 +41,13 @@ struct Register {
     })
   }
 
-  handleRegister(): void {
-    if (this.loading) {
-      return
-    }
+  goNextStep(): void {
     if (!this.agreeTerms) {
       UiHelper.showToast('请先阅读并同意用户协议与隐私政策')
       return
     }
-    if (this.nickname.trim().length === 0) {
-      UiHelper.showToast('请填写昵称')
-      return
-    }
-    if (this.phone.trim().length === 0) {
-      UiHelper.showToast('请填写手机号')
+    if (this.phone.trim().length < 11) {
+      UiHelper.showToast('请输入正确的手机号码')
       return
     }
     if (this.captchaCode.trim().length === 0) {
@@ -62,6 +58,17 @@ struct Register {
       UiHelper.showToast('密码建议 8-16 位数字或字母组合')
       return
     }
+    this.registerStep = 2
+  }
+
+  handleRegister(): void {
+    if (this.loading) {
+      return
+    }
+    if (this.nickname.trim().length === 0) {
+      UiHelper.showToast('请填写昵称')
+      return
+    }
 
     this.loading = true
     AuthApi.register(
@@ -69,7 +76,8 @@ struct Register {
       this.phone.trim(),
       this.captchaId,
       this.captchaCode.trim(),
-      this.password
+      this.password,
+      this.selectedAvatarKey
     ).then((result: AuthResult) => {
       AuthSession.save(result.user, result.token)
       UiHelper.showToast('注册成功，欢迎加入校园心灵墙')
@@ -77,6 +85,7 @@ struct Register {
     }).catch((err: Error) => {
       UiHelper.showToast(err.message)
       this.refreshCaptcha()
+      this.registerStep = 1
     }).finally(() => {
       this.loading = false
     })
@@ -90,7 +99,12 @@ struct Register {
           .fontColor(AuthTheme.PRIMARY)
           .width(40)
           .onClick(() => {
-            if (!this.loading) {
+            if (this.loading) {
+              return
+            }
+            if (this.registerStep === 2) {
+              this.registerStep = 1
+            } else {
               UiHelper.goBack()
             }
           })
@@ -109,13 +123,13 @@ struct Register {
       .padding({ left: 16, right: 16, top: 12 })
 
       Row({ space: 0 }) {
-        this.buildStepPill('1 账号信息', true)
+        this.buildStepPill('1 账号信息', this.registerStep === 1)
         Row()
           .layoutWeight(1)
           .height(2)
-          .backgroundColor('#E0E8EF')
+          .backgroundColor(this.registerStep >= 2 ? AuthTheme.PRIMARY : '#E0E8EF')
           .margin({ left: 8, right: 8, top: 18 })
-        this.buildStepPill('2 个人资料', false)
+        this.buildStepPill('2 个人资料', this.registerStep === 2)
       }
       .width('100%')
       .padding({ left: 24, right: 24, top: 20 })
@@ -123,118 +137,11 @@ struct Register {
       Scroll() {
         Column({ space: 16 }) {
           Column({ space: 14 }) {
-            this.buildFieldLabel('昵称')
-            AuthInput({
-              placeholder: '起一个温暖的名字吧',
-              value: $nickname
-            })
-
-            this.buildFieldLabel('手机号')
-            AuthInput({
-              placeholder: '请输入手机号码',
-              value: $phone
-            })
-
-            this.buildFieldLabel('验证码')
-            Row({ space: 10 }) {
-              Column() {
-                AuthInput({
-                  placeholder: '请输入右侧验证码',
-                  value: $captchaCode
-                })
-              }
-              .layoutWeight(1)
-
-              Column({ space: 4 }) {
-                Text(this.captchaText)
-                  .width(96)
-                  .height(44)
-                  .textAlign(TextAlign.Center)
-                  .fontSize(20)
-                  .fontWeight(FontWeight.Bold)
-                  .fontColor('#2D74C4')
-                  .letterSpacing(4)
-                  .backgroundColor('#EEF4F8')
-                  .borderRadius(12)
-                  .border({ width: 1, color: '#C8D9E8' })
-
-                Text(this.loadingCaptcha ? '刷新中' : '换一张')
-                  .fontSize(11)
-                  .fontColor(AuthTheme.PRIMARY)
-                  .textAlign(TextAlign.Center)
-                  .width(96)
-                  .onClick(() => this.refreshCaptcha())
-              }
+            if (this.registerStep === 1) {
+              this.buildAccountStep()
+            } else {
+              this.buildProfileStep()
             }
-            .alignItems(VerticalAlign.Top)
-
-            this.buildFieldLabel('设置密码')
-            AuthInput({
-              placeholder: '建议8-16位数字或字母组合',
-              value: $password,
-              isPassword: true,
-              showToggle: true
-            })
-
-            Row({ space: 10 }) {
-              Checkbox({ name: 'agree', group: 'register' })
-                .select(this.agreeTerms)
-                .selectedColor(AuthTheme.PRIMARY)
-                .onChange((checked: boolean) => {
-                  this.agreeTerms = checked
-                })
-
-              Text() {
-                Span('我已阅读并同意')
-                  .fontSize(12)
-                  .fontColor('#5F6F7A')
-                Span('《用户协议》')
-                  .fontSize(12)
-                  .fontColor(AuthTheme.PRIMARY)
-                Span('与')
-                  .fontSize(12)
-                  .fontColor('#5F6F7A')
-                Span('《隐私政策》')
-                  .fontSize(12)
-                  .fontColor(AuthTheme.PRIMARY)
-                Span('，愿共建温暖社区。')
-                  .fontSize(12)
-                  .fontColor('#5F6F7A')
-              }
-              .layoutWeight(1)
-            }
-            .alignItems(VerticalAlign.Top)
-            .margin({ top: 4 })
-
-            Button(this.loading ? '注册中...' : '立即注册')
-              .width('100%')
-              .height(50)
-              .fontSize(16)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(Color.White)
-              .backgroundColor(this.loading ? '#7BA3D4' : AuthTheme.PRIMARY)
-              .borderRadius(25)
-              .margin({ top: 8 })
-              .enabled(!this.loading)
-              .onClick(() => this.handleRegister())
-
-            Row() {
-              Text('已有账号？')
-                .fontSize(13)
-                .fontColor(AuthTheme.LINK_MUTED)
-              Text('直接登录')
-                .fontSize(13)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(AuthTheme.PRIMARY)
-                .onClick(() => {
-                  if (!this.loading) {
-                    UiHelper.goBack()
-                  }
-                })
-            }
-            .width('100%')
-            .justifyContent(FlexAlign.Center)
-            .margin({ top: 4, bottom: 8 })
           }
           .width('100%')
           .padding(24)
@@ -270,6 +177,172 @@ struct Register {
     .width('100%')
     .height('100%')
     .backgroundColor(AuthTheme.REGISTER_BG)
+  }
+
+  @Builder
+  buildAccountStep() {
+    this.buildFieldLabel('手机号')
+    AuthInput({
+      placeholder: '请输入手机号码',
+      value: $phone
+    })
+
+    this.buildFieldLabel('验证码')
+    Row({ space: 10 }) {
+      Column() {
+        AuthInput({
+          placeholder: '请输入右侧验证码',
+          value: $captchaCode
+        })
+      }
+      .layoutWeight(1)
+
+      Column({ space: 4 }) {
+        Text(this.captchaText)
+          .width(96)
+          .height(44)
+          .textAlign(TextAlign.Center)
+          .fontSize(20)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#2D74C4')
+          .letterSpacing(4)
+          .backgroundColor('#EEF4F8')
+          .borderRadius(12)
+          .border({ width: 1, color: '#C8D9E8' })
+
+        Text(this.loadingCaptcha ? '刷新中' : '换一张')
+          .fontSize(11)
+          .fontColor(AuthTheme.PRIMARY)
+          .textAlign(TextAlign.Center)
+          .width(96)
+          .onClick(() => this.refreshCaptcha())
+      }
+    }
+    .alignItems(VerticalAlign.Top)
+
+    this.buildFieldLabel('设置密码')
+    AuthInput({
+      placeholder: '建议8-16位数字或字母组合',
+      value: $password,
+      isPassword: true,
+      showToggle: true
+    })
+
+    Row({ space: 10 }) {
+      Checkbox({ name: 'agree', group: 'register' })
+        .select(this.agreeTerms)
+        .selectedColor(AuthTheme.PRIMARY)
+        .onChange((checked: boolean) => {
+          this.agreeTerms = checked
+        })
+
+      Text() {
+        Span('我已阅读并同意')
+          .fontSize(12)
+          .fontColor('#5F6F7A')
+        Span('《用户协议》')
+          .fontSize(12)
+          .fontColor(AuthTheme.PRIMARY)
+        Span('与')
+          .fontSize(12)
+          .fontColor('#5F6F7A')
+        Span('《隐私政策》')
+          .fontSize(12)
+          .fontColor(AuthTheme.PRIMARY)
+        Span('，愿共建温暖社区。')
+          .fontSize(12)
+          .fontColor('#5F6F7A')
+      }
+      .layoutWeight(1)
+    }
+    .alignItems(VerticalAlign.Top)
+    .margin({ top: 4 })
+
+    Button('下一步')
+      .width('100%')
+      .height(50)
+      .fontSize(16)
+      .fontWeight(FontWeight.Bold)
+      .fontColor(Color.White)
+      .backgroundColor(AuthTheme.PRIMARY)
+      .borderRadius(25)
+      .margin({ top: 8 })
+      .onClick(() => this.goNextStep())
+
+    Row() {
+      Text('已有账号？')
+        .fontSize(13)
+        .fontColor(AuthTheme.LINK_MUTED)
+      Text('直接登录')
+        .fontSize(13)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(AuthTheme.PRIMARY)
+        .onClick(() => {
+          UiHelper.goBack()
+        })
+    }
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+    .margin({ top: 4, bottom: 8 })
+  }
+
+  @Builder
+  buildProfileStep() {
+    Text('选择你的头像')
+      .fontSize(14)
+      .fontWeight(FontWeight.Medium)
+      .fontColor('#4A5A66')
+      .width('100%')
+
+  Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
+      ForEach(AVATAR_KEYS, (key: string) => {
+        Image(getAvatarResource(key))
+          .width(52)
+          .height(52)
+          .borderRadius(26)
+          .objectFit(ImageFit.Cover)
+          .border({
+            width: this.selectedAvatarKey === key ? 3 : 1,
+            color: this.selectedAvatarKey === key ? AuthTheme.PRIMARY : '#E8EEF3'
+          })
+          .width('23%')
+          .margin({ bottom: 12 })
+          .onClick(() => {
+            this.selectedAvatarKey = key
+          })
+      }, (key: string) => key)
+    }
+    .width('100%')
+
+    this.buildFieldLabel('昵称')
+    AuthInput({
+      placeholder: '起一个温暖的名字吧',
+      value: $nickname
+    })
+
+    Button(this.loading ? '注册中...' : '完成注册')
+      .width('100%')
+      .height(50)
+      .fontSize(16)
+      .fontWeight(FontWeight.Bold)
+      .fontColor(Color.White)
+      .backgroundColor(this.loading ? '#7BA3D4' : AuthTheme.PRIMARY)
+      .borderRadius(25)
+      .margin({ top: 8 })
+      .enabled(!this.loading)
+      .onClick(() => this.handleRegister())
+
+    Text('上一步')
+      .fontSize(13)
+      .fontColor(AuthTheme.PRIMARY)
+      .width('100%')
+      .textAlign(TextAlign.Center)
+      .margin({ top: 8, bottom: 8 })
+      .onClick(() => {
+        if (!this.loading) {
+          this.registerStep = 1
+        }
+      })
   }
 
   @Builder

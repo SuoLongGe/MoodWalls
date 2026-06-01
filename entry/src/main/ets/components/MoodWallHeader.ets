@@ -1,8 +1,9 @@
-import { router } from '@kit.ArkUI'
+import { getAvatarResource } from '../common/AvatarResources'
 
 @Component
 export struct MoodWallHeader {
   @StorageLink('userNickname') userNickname: string = '同学'
+  @StorageLink('userAvatarKey') userAvatarKey: string = 'avatar_01'
   @Prop currentTab: number = 0
   @Prop greeting: string = ''
   @Prop anxiousPercent: number = 0
@@ -16,9 +17,6 @@ export struct MoodWallHeader {
     }
     if (this.currentTab === 2) {
       return '写下一张心情纸条，贴进校园心墙。'
-    }
-    if (this.currentTab === 3) {
-      return '这一页收集你的情绪足迹。'
     }
     return '今天校园里又有一些心情落在了墙上。'
   }
@@ -44,16 +42,12 @@ export struct MoodWallHeader {
     Column({ space: 14 }) {
       Row() {
         Row({ space: 12 }) {
-          Stack() {
-            Circle()
-              .width(44)
-              .height(44)
-              .fill('#C6EBDD')
-            Text('MW')
-              .fontSize(14)
-              .fontWeight(FontWeight.Bold)
-              .fontColor('#2E4B43')
-          }
+          Image(getAvatarResource(this.userAvatarKey))
+            .width(44)
+            .height(44)
+            .borderRadius(22)
+            .objectFit(ImageFit.Cover)
+            .border({ width: 2, color: '#E8F6EC' })
 
           Column({ space: 4 }) {
             Text(`${this.greeting}，${this.userNickname}`)

@@ -10,33 +10,33 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "users", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_users_phone", columnNames = "phone"),
-        @UniqueConstraint(name = "uk_users_nickname", columnNames = "nickname")
+@Table(name = "user_daily_moods", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_user_daily_moods", columnNames = {"user_id", "stat_date"})
 })
-public class User {
+public class UserDailyMood {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 64)
-    private String nickname;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
-    @Column(nullable = false, length = 20)
-    private String phone;
+    @Column(name = "stat_date", nullable = false)
+    private LocalDate statDate;
 
-    @Column(name = "student_id", length = 32)
-    private String studentId;
+    @Column(name = "dominant_mood", nullable = false, length = 32)
+    private String dominantMood;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
-    private String passwordHash;
+    @Column(name = "post_count", nullable = false)
+    private Integer postCount = 0;
 
-    @Column(name = "avatar_key", length = 32)
-    private String avatarKey = "avatar_01";
+    @Column(name = "mood_score")
+    private Integer moodScore;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -64,44 +64,44 @@ public class User {
         this.id = id;
     }
 
-    public String getNickname() {
-        return nickname;
+    public Long getUserId() {
+        return userId;
     }
 
-    public void setNickname(String nickname) {
-        this.nickname = nickname;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
-    public String getPhone() {
-        return phone;
+    public LocalDate getStatDate() {
+        return statDate;
     }
 
-    public void setPhone(String phone) {
-        this.phone = phone;
+    public void setStatDate(LocalDate statDate) {
+        this.statDate = statDate;
     }
 
-    public String getStudentId() {
-        return studentId;
+    public String getDominantMood() {
+        return dominantMood;
     }
 
-    public void setStudentId(String studentId) {
-        this.studentId = studentId;
+    public void setDominantMood(String dominantMood) {
+        this.dominantMood = dominantMood;
     }
 
-    public String getPasswordHash() {
-        return passwordHash;
+    public Integer getPostCount() {
+        return postCount;
     }
 
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
+    public void setPostCount(Integer postCount) {
+        this.postCount = postCount;
     }
 
-    public String getAvatarKey() {
-        return avatarKey;
+    public Integer getMoodScore() {
+        return moodScore;
     }
 
-    public void setAvatarKey(String avatarKey) {
-        this.avatarKey = avatarKey;
+    public void setMoodScore(Integer moodScore) {
+        this.moodScore = moodScore;
     }
 
     public LocalDateTime getCreatedAt() {

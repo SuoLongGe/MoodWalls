@@ -24,6 +24,8 @@ public class RegisterRequest {
     @Size(min = 8, max = 16, message = "密码长度应为8-16位")
     private String password;
 
+    private String avatarKey = "avatar_01";
+
     public String getNickname() {
         return nickname;
     }
@@ -62,5 +64,13 @@ public class RegisterRequest {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getAvatarKey() {
+        return avatarKey;
+    }
+
+    public void setAvatarKey(String avatarKey) {
+        this.avatarKey = avatarKey;
     }
 }

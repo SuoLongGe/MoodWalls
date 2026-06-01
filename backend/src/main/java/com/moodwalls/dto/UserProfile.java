@@ -8,23 +8,30 @@ public class UserProfile {
     private String nickname;
     private String phone;
     private String studentId;
+    private String avatarKey;
 
     public UserProfile() {
     }
 
-    public UserProfile(Long id, String nickname, String phone, String studentId) {
+    public UserProfile(Long id, String nickname, String phone, String studentId, String avatarKey) {
         this.id = id;
         this.nickname = nickname;
         this.phone = phone;
         this.studentId = studentId;
+        this.avatarKey = avatarKey;
     }
 
     public static UserProfile from(User user) {
+        String key = user.getAvatarKey();
+        if (key == null || key.isBlank()) {
+            key = "avatar_01";
+        }
         return new UserProfile(
                 user.getId(),
                 user.getNickname(),
                 maskPhone(user.getPhone()),
-                user.getStudentId()
+                user.getStudentId(),
+                key
         );
     }
 
@@ -65,5 +72,13 @@ public class UserProfile {
 
     public void setStudentId(String studentId) {
         this.studentId = studentId;
+    }
+
+    public String getAvatarKey() {
+        return avatarKey;
+    }
+
+    public void setAvatarKey(String avatarKey) {
+        this.avatarKey = avatarKey;
     }
 }

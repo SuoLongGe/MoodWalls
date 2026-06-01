@@ -3,6 +3,6 @@
     "pages/Login",
     "pages/Register",
     "pages/Index",
-    "pages/NotificationPage"
+    "pages/MyPostsPage"
   ]
 }
