@@ -1,27 +1,15 @@
 import { http } from '@kit.NetworkKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 import { ApiConfig } from '../common/ApiConfig'
-import {
-  ApiResponse,
-  ChangePasswordRequestBody,
-  LoginRequestBody,
-  RegisterRequestBody,
-  UpdateProfileRequestBody
-} from '../model/AuthApiTypes'
-
-export type HttpRequestBody =
-  RegisterRequestBody |
-  LoginRequestBody |
-  UpdateProfileRequestBody |
-  ChangePasswordRequestBody
+import { ApiResponse } from '../model/AuthApiTypes'
 
 export class HttpClient {
 
-  static post<T>(path: string, body: HttpRequestBody, token?: string): Promise<T> {
+  static post<T>(path: string, body: object | undefined, token?: string): Promise<T> {
     return HttpClient.request<T>(path, http.RequestMethod.POST, body, token)
   }
 
-  static put<T>(path: string, body: HttpRequestBody, token: string): Promise<T> {
+  static put<T>(path: string, body: object | undefined, token: string): Promise<T> {
     return HttpClient.request<T>(path, http.RequestMethod.PUT, body, token)
   }
 
@@ -33,17 +21,22 @@ export class HttpClient {
     return HttpClient.request<T>(path, http.RequestMethod.POST, undefined, token)
   }
 
+  static delete(path: string, token: string): Promise<void> {
+    return HttpClient.request<void>(path, http.RequestMethod.DELETE, undefined, token)
+  }
+
   private static request<T>(
     path: string,
     method: http.RequestMethod,
-    body?: HttpRequestBody,
+    body?: object,
     token?: string
   ): Promise<T> {
     const httpRequest = http.createHttp()
-    let headers: HttpHeaders = {
+    let headers: Record<string, string> = {
       'Content-Type': 'application/json'
     }
     if (token !== undefined && token.length > 0) {
+
       headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -62,7 +55,14 @@ export class HttpClient {
     return new Promise<T>((resolve, reject) => {
       httpRequest.request(
         ApiConfig.BASE_URL + path,
-        options,
+        {
+          method: method,
+          header: headers,
+          extraData: body,
+          expectDataType: http.HttpDataType.STRING,
+          connectTimeout: 20000,
+          readTimeout: 20000
+        },
         (err: BusinessError, response: http.HttpResponse) => {
           httpRequest.destroy()
           if (err) {
@@ -104,18 +104,4 @@ export class HttpClient {
       reject(new Error('响应解析失败'))
     }
   }
-}
-
-interface HttpHeaders {
-  'Content-Type': string
-  'Authorization'?: string
-}
-
-interface HttpRequestOptions {
-  method: http.RequestMethod
-  header: HttpHeaders
-  extraData: string
-  expectDataType: http.HttpDataType
-  connectTimeout: number
-  readTimeout: number
 }

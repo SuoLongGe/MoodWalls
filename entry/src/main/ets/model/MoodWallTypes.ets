@@ -9,9 +9,37 @@ export interface NoteItem {
   zoneKey?: string
   timeText: string
   likes: number
-  isLiked?: boolean
+  liked?: boolean
   color: string
   createdAt?: string
+}
+
+export interface PostDetailResponse extends NoteItem {
+}
+
+export interface PostListResponse {
+  list: NoteItem[]
+  total: number
+  page: number
+  size: number
+  hasMore: boolean
+}
+
+export interface LikeResponse {
+  likes: number
+  liked: boolean
+}
+
+export interface PublishPostResponse {
+  post: NoteItem
+  aiResponse: string
+}
+
+export interface TodayStatsResponse {
+  anxiousPercent: number
+  calmPercent: number
+  happyPercent: number
+  totalPosts: number
 }
 
 export interface MoodOption {

@@ -1,7 +1,6 @@
 package com.moodwalls.util;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public final class MoodHelper {
@@ -92,7 +91,7 @@ public final class MoodHelper {
     }
 
     public static String formatTimeText(java.time.LocalDateTime createdAt) {
-        java.time.Duration duration = java.time.Duration.between(createdAt, java.time.LocalDateTime.now());
+        java.time.Duration duration = java.time.Duration.between(createdAt, java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")));
         long minutes = duration.toMinutes();
         if (minutes < 1) {
             return "刚刚";

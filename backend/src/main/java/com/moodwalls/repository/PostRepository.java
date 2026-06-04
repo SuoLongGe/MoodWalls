@@ -52,4 +52,14 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     long countUserPostsSince(@Param("userId") Long userId, @Param("since") LocalDateTime since);
 
     List<Post> findByUserIdAndStatus(Long userId, Integer status);
+
+    Page<Post> findByStatusOrderByCreatedAtDesc(Integer status, Pageable pageable);
+
+    Page<Post> findByStatusAndMoodOrderByCreatedAtDesc(Integer status, String mood, Pageable pageable);
+
+    @Query("SELECT COUNT(p) FROM Post p WHERE p.status = 1")
+    long countAllActive();
+
+    @Query(value = "SELECT lzm.zone_key FROM location_zone_mappings lzm WHERE lzm.location_name = :location LIMIT 1", nativeQuery = true)
+    List<Object[]> findLocationToZoneMappings(@Param("location") String location);
 }
