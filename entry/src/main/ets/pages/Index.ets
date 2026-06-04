@@ -202,7 +202,8 @@ struct Index {
             this.supportMessage = res.response
             this.supportLoading = false
           })
-          .catch(() => {
+          .catch((err: Error) => {
+            console.error('[MoodWalls] supportPost failed: ' + (err.message || String(err)))
             this.supportMessage = '你已经很努力了。先把这份情绪放在这里，慢慢呼吸一下，再给自己一点点缓冲空间。'
             this.supportLoading = false
           })

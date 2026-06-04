@@ -36,7 +36,20 @@ export class HttpClient {
       'Content-Type': 'application/json'
     }
     if (token !== undefined && token.length > 0) {
-      headers['Authorization'] = `Bearer ${token}`
+
+      headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    }
+
+    const options: HttpRequestOptions = {
+      method: method,
+      header: headers,
+      extraData: body !== undefined ? JSON.stringify(body) : '{}',
+      expectDataType: http.HttpDataType.STRING,
+      connectTimeout: 20000,
+      readTimeout: 20000
     }
 
     return new Promise<T>((resolve, reject) => {
@@ -53,11 +66,11 @@ export class HttpClient {
         (err: BusinessError, response: http.HttpResponse) => {
           httpRequest.destroy()
           if (err) {
-            console.error('HTTP请求失败 err.code=' + err.code + ' msg=' + err.message)
+            console.error('[MoodWalls] HTTP error: code=' + err.code + ' msg=' + err.message)
             reject(new Error('网络连接失败，请确认后端已启动且 IP 正确'))
             return
           }
-          console.info('HTTP响应 code=' + response.responseCode + ' result=' + JSON.stringify(response.result))
+          console.info('[MoodWalls] HTTP ' + method + ' ' + path + ' -> ' + response.responseCode)
           HttpClient.parseResponse<T>(response, resolve, reject)
         }
       )
@@ -70,6 +83,7 @@ export class HttpClient {
     reject: (reason: Error) => void
   ): void {
     if (response.result === undefined || response.result === null) {
+      console.error('[MoodWalls] Response result is null, HTTP ' + response.responseCode)
       reject(new Error(`网络错误 (${response.responseCode})`))
       return
     }
@@ -78,8 +92,10 @@ export class HttpClient {
       const raw: string = typeof response.result === 'string'
         ? response.result as string
         : JSON.stringify(response.result)
+      console.info('[MoodWalls] Response raw: ' + raw.substring(0, 200))
       const parsed: ApiResponse<T> = JSON.parse(raw) as ApiResponse<T>
       if (parsed.code !== 200) {
+        console.error('[MoodWalls] API error: code=' + parsed.code + ' msg=' + parsed.message)
         reject(new Error(parsed.message || '请求失败'))
         return
       }
