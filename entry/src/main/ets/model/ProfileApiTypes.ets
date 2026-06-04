@@ -38,7 +38,7 @@ export interface PostSummary {
   location: string
   zoneKey: string
   likes: number
-  isLiked: boolean
+  liked: boolean
   color: string
   createdAt: string
   timeText: string

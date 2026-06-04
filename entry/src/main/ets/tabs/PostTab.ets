@@ -6,11 +6,29 @@ export struct PostTab {
   @Link selectedMoodKey: string
   @Link draftText: string
   @Link locationIndex: number
+  @Prop publishing: boolean = false
   onPublish: () => void = () => {}
 
   getHint(): string {
     const mood: MoodOption | undefined = MOOD_OPTIONS.find((item: MoodOption) => item.key === this.selectedMoodKey)
     return mood ? mood.hint : '写下这一刻真实的感受...'
+  }
+
+  getTextLength(): number {
+    return this.draftText.trim().length
+  }
+
+  isPublishEnabled(): boolean {
+    return this.getTextLength() >= 10 && !this.publishing
+  }
+
+  getButtonOpacity(): number {
+    if (this.publishing) return 0.45
+    return this.getTextLength() >= 10 ? 1 : 0.45
+  }
+
+  getButtonText(): string {
+    return this.publishing ? '发布中...' : '贴上心墙'
   }
 
   build() {
@@ -49,13 +67,31 @@ export struct PostTab {
           .fontSize(15)
           .placeholderColor('#A0AAA8')
           .onChange((value: string) => {
-            this.draftText = value
+            if (value.length <= 500) {
+              this.draftText = value
+            } else {
+              this.draftText = value.substring(0, 500)
+            }
           })
       }
       .width('100%')
       .padding(16)
       .backgroundColor('#FFFFFF')
       .borderRadius(24)
+
+      Row() {
+        Text(`${this.getTextLength()}/500`)
+          .fontSize(12)
+          .fontColor(this.getTextLength() >= 10 ? '#73C088' : '#B0B8B6')
+        if (this.getTextLength() > 0 && this.getTextLength() < 10) {
+          Text(`还需 ${10 - this.getTextLength()} 字`)
+            .fontSize(11)
+            .fontColor('#D86A3D')
+            .margin({ left: 8 })
+        }
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.End)
 
       Row() {
         Column({ space: 4 }) {
@@ -82,7 +118,7 @@ export struct PostTab {
       .backgroundColor('#F5FBF8')
       .borderRadius(20)
 
-      Text('贴上心墙')
+      Text(this.getButtonText())
         .width('100%')
         .textAlign(TextAlign.Center)
         .fontSize(15)
@@ -91,9 +127,11 @@ export struct PostTab {
         .padding({ top: 14, bottom: 14 })
         .backgroundColor('#31534A')
         .borderRadius(24)
-        .opacity(this.draftText.trim().length > 0 ? 1 : 0.45)
+        .opacity(this.getButtonOpacity())
         .onClick(() => {
-          this.onPublish()
+          if (this.isPublishEnabled()) {
+            this.onPublish()
+          }
         })
     }
   }

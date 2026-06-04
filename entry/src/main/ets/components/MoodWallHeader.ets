@@ -5,11 +5,11 @@ import { UiHelper } from '../common/UiHelper'
 export struct MoodWallHeader {
   @StorageLink('userNickname') userNickname: string = '同学'
   @StorageLink('userAvatarKey') userAvatarKey: string = 'avatar_01'
+  @StorageLink('headerAnxiousPercent') headerAnxiousPercent: number = 0
+  @StorageLink('headerCalmPercent') headerCalmPercent: number = 0
+  @StorageLink('headerHappyPercent') headerHappyPercent: number = 0
   @Prop currentTab: number = 0
   @Prop greeting: string = ''
-  @Prop anxiousPercent: number = 0
-  @Prop calmPercent: number = 0
-  @Prop happyPercent: number = 0
   @Prop unreadCount: number = 0
 
   getSubtitle(): string {
@@ -94,9 +94,9 @@ export struct MoodWallHeader {
 
       if (this.currentTab !== 2) {
         Row({ space: 8 }) {
-          this.buildChip('焦虑', this.anxiousPercent, '#FFF1EB', '#D86A3D')
-          this.buildChip('平静', this.calmPercent, '#EEF9F1', '#33824A')
-          this.buildChip('开心', this.happyPercent, '#FFF7DB', '#A87400')
+          this.buildChip('焦虑', this.headerAnxiousPercent, '#FFF1EB', '#D86A3D')
+          this.buildChip('平静', this.headerCalmPercent, '#EEF9F1', '#33824A')
+          this.buildChip('开心', this.headerHappyPercent, '#FFF7DB', '#A87400')
         }
         .width('100%')
       }
