@@ -30,6 +30,30 @@ export interface LikeResponse {
   liked: boolean
 }
 
+/** 后端 JSON 可能使用 isLiked 字段名 */
+export interface NoteItemFromApi {
+  id: number
+  userId?: number
+  nickname?: string
+  mood: string
+  moodLabel: string
+  text: string
+  location: string
+  zoneKey?: string
+  timeText: string
+  likes: number
+  liked?: boolean
+  isLiked?: boolean
+  color: string
+  createdAt?: string
+}
+
+export interface LikeResponseFromApi {
+  likes: number
+  liked?: boolean
+  isLiked?: boolean
+}
+
 export interface PublishPostResponse {
   post: NoteItem
   aiResponse: string
@@ -40,6 +64,20 @@ export interface TodayStatsResponse {
   calmPercent: number
   happyPercent: number
   totalPosts: number
+}
+
+export interface MoodStatItem {
+  mood: string
+  label: string
+  color: string
+  percent: number
+  count: number
+}
+
+export interface MoodStatsResponse {
+  period: string
+  totalPosts: number
+  items: Array<MoodStatItem>
 }
 
 export interface MoodOption {

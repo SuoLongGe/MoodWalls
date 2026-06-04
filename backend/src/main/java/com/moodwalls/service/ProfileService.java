@@ -25,9 +25,11 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
@@ -54,6 +56,7 @@ public class ProfileService {
         long postCount = postRepository.countByUserIdAndStatus(userId, STATUS_ACTIVE);
         long totalLikes = postRepository.sumLikeCountByUserId(userId);
         int streakDays = calculateStreakDays(userId);
+        int activeDays = calculateActiveDays(userId);
         WeekStatsDto weekStats = buildWeekStats(userId);
         String moodClimate = MoodHelper.buildClimate(
                 weekStats.getCalmPercent(),
@@ -69,6 +72,7 @@ public class ProfileService {
         dto.setPostCount(postCount);
         dto.setTotalLikes(totalLikes);
         dto.setStreakDays(streakDays);
+        dto.setActiveDays(activeDays);
         dto.setMoodClimate(moodClimate);
         dto.setWeekStats(weekStats);
         return dto;
@@ -82,22 +86,25 @@ public class ProfileService {
         List<UserDailyMood> stored = userDailyMoodRepository.findByUserIdAndStatDateBetweenOrderByStatDateAsc(
                 userId, start, end);
 
-        List<CalendarDayDto> days;
-        if (!stored.isEmpty()) {
-            days = stored.stream()
-                    .map(row -> new CalendarDayDto(
-                            row.getStatDate().toString(),
-                            row.getDominantMood(),
-                            MoodHelper.colorOf(row.getDominantMood()),
-                            row.getPostCount()))
-                    .collect(Collectors.toList());
-        } else {
-            days = buildCalendarFromPosts(userId, start, end);
+        // 以真实发帖聚合为主；user_daily_moods 仅作补充（避免演示数据覆盖导致只显示个别日期）
+        Map<LocalDate, CalendarDayDto> merged = new TreeMap<>();
+        for (CalendarDayDto fromPosts : buildCalendarFromPosts(userId, start, end)) {
+            merged.put(LocalDate.parse(fromPosts.getDate()), fromPosts);
+        }
+        for (UserDailyMood row : stored) {
+            LocalDate statDate = row.getStatDate();
+            if (!merged.containsKey(statDate)) {
+                merged.put(statDate, new CalendarDayDto(
+                        statDate.toString(),
+                        row.getDominantMood(),
+                        MoodHelper.colorOf(row.getDominantMood()),
+                        row.getPostCount() != null ? row.getPostCount() : 0));
+            }
         }
 
         CalendarResponseDto response = new CalendarResponseDto();
         response.setMonth(yearMonth.toString());
-        response.setDays(days);
+        response.setDays(new ArrayList<>(merged.values()));
         return response;
     }
 
@@ -164,6 +171,20 @@ public class ProfileService {
                 MoodHelper.percent(anxious, total),
                 MoodHelper.percent(happy, total)
         );
+    }
+
+    private int calculateActiveDays(Long userId) {
+        List<Post> posts = postRepository.findByUserIdAndStatus(userId, STATUS_ACTIVE);
+        if (posts.isEmpty()) {
+            return 0;
+        }
+        Set<LocalDate> dates = new HashSet<>();
+        for (Post post : posts) {
+            if (post.getCreatedAt() != null) {
+                dates.add(post.getCreatedAt().toLocalDate());
+            }
+        }
+        return dates.size();
     }
 
     private int calculateStreakDays(Long userId) {

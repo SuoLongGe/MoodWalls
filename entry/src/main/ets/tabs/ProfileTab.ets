@@ -3,7 +3,9 @@ import { AuthSession } from '../common/AuthSession'
 import { AVATAR_KEYS, getAvatarResource } from '../common/AvatarResources'
 import { UiHelper } from '../common/UiHelper'
 import { AuthInput } from '../components/auth/AuthInput'
-import { CalendarCell, CalendarDay, ProfileOverview } from '../model/ProfileApiTypes'
+import { CalendarCell, CalendarDay, CalendarResponse, ProfileOverview } from '../model/ProfileApiTypes'
+import { NotificationStore } from '../common/NotificationStore'
+import { ProfileStore } from '../common/ProfileStore'
 import { AuthApi } from '../service/AuthApi'
 import { ProfileApi } from '../service/ProfileApi'
 
@@ -12,6 +14,7 @@ export struct ProfileTab {
   @StorageLink('userNickname') userNickname: string = '同学'
   @StorageLink('userAccount') userAccount: string = ''
   @StorageLink('userAvatarKey') userAvatarKey: string = 'avatar_01'
+  @Prop @Watch('onProfileRefreshTick') profileRefreshTick: number = 0
   onOpenReport: (report: string) => void = () => {}
 
   @State showEditProfile: boolean = false
@@ -22,23 +25,31 @@ export struct ProfileTab {
   @State confirmPassword: string = ''
   @State saving: boolean = false
 
+  @StorageLink('profilePostCount') postCount: number = 0
+  @StorageLink('profileTotalLikes') totalLikes: number = 0
+  @StorageLink('profileActiveDays') activeDays: number = 0
+  @StorageLink('profileMoodClimate') moodClimate: string = '暂无记录'
+  @StorageLink('profileCalmPercent') calmPercent: number = 0
+  @StorageLink('profileAnxiousPercent') anxiousPercent: number = 0
+  @StorageLink('profileHappyPercent') happyPercent: number = 0
   @State loadingProfile: boolean = true
-  @State postCount: number = 0
-  @State totalLikes: number = 0
-  @State streakDays: number = 0
-  @State moodClimate: string = '暂无记录'
-  @State calmPercent: number = 0
-  @State anxiousPercent: number = 0
-  @State happyPercent: number = 0
 
   @State calendarMonth: string = ''
   @State calendarCells: Array<CalendarCell> = []
   @State calendarTitle: string = ''
 
   aboutToAppear(): void {
+    ProfileStore.ensureInitialized()
     this.calendarMonth = ProfileTab.formatMonthKey(new Date())
     this.refreshProfile()
     this.loadArchive()
+  }
+
+  onProfileRefreshTick(): void {
+    if (this.profileRefreshTick > 0) {
+      this.loadOverview()
+      this.reloadCalendar()
+    }
   }
 
   static formatMonthKey(date: Date): string {
@@ -64,33 +75,48 @@ export struct ProfileTab {
     })
   }
 
+  loadOverview(): void {
+    if (!AuthSession.isLoggedIn()) {
+      return
+    }
+    ProfileApi.getOverview().then((overview: ProfileOverview) => {
+      ProfileStore.applyOverview(overview)
+    }).catch((err: Error) => {
+      console.error(`loadOverview: ${err.message}`)
+      UiHelper.showToast(err.message || '加载个人数据失败')
+    })
+  }
+
+  reloadCalendar(): void {
+    if (!AuthSession.isLoggedIn()) {
+      return
+    }
+    ProfileApi.getCalendar(this.calendarMonth).then((calendar) => {
+      this.applyCalendar(calendar)
+    }).catch((err: Error) => {
+      console.error(`reloadCalendar: ${err.message}`)
+    })
+  }
+
+  applyCalendar(calendar: CalendarResponse): void {
+    this.calendarMonth = calendar.month
+    this.calendarTitle = ProfileTab.formatMonthTitle(this.calendarMonth)
+    this.calendarCells = ProfileTab.buildCalendarCells(this.calendarMonth, calendar.days)
+  }
+
   loadArchive(): void {
     if (!AuthSession.isLoggedIn()) {
       return
     }
     this.loadingProfile = true
-    ProfileApi.getOverview().then((overview: ProfileOverview) => {
-      this.applyOverview(overview)
-      return ProfileApi.getCalendar(this.calendarMonth)
-    }).then((calendar) => {
-      this.calendarMonth = calendar.month
-      this.calendarTitle = ProfileTab.formatMonthTitle(this.calendarMonth)
-      this.calendarCells = ProfileTab.buildCalendarCells(this.calendarMonth, calendar.days)
+    this.loadOverview()
+    ProfileApi.getCalendar(this.calendarMonth).then((calendar) => {
+      this.applyCalendar(calendar)
+      this.loadingProfile = false
     }).catch((err: Error) => {
       UiHelper.showToast(err.message)
-    }).finally(() => {
       this.loadingProfile = false
     })
-  }
-
-  applyOverview(overview: ProfileOverview): void {
-    this.postCount = overview.postCount
-    this.totalLikes = overview.totalLikes
-    this.streakDays = overview.streakDays
-    this.moodClimate = overview.moodClimate
-    this.calmPercent = overview.weekStats.calmPercent
-    this.anxiousPercent = overview.weekStats.anxiousPercent
-    this.happyPercent = overview.weekStats.happyPercent
   }
 
   static formatMonthTitle(monthKey: string): string {
@@ -153,9 +179,7 @@ export struct ProfileTab {
     }
     this.calendarMonth = ProfileTab.formatMonthKey(new Date(year, month - 1, 1))
     ProfileApi.getCalendar(this.calendarMonth).then((calendar) => {
-      this.calendarMonth = calendar.month
-      this.calendarTitle = ProfileTab.formatMonthTitle(this.calendarMonth)
-      this.calendarCells = ProfileTab.buildCalendarCells(this.calendarMonth, calendar.days)
+      this.applyCalendar(calendar)
     }).catch((err: Error) => {
       UiHelper.showToast(err.message)
     })
@@ -164,6 +188,7 @@ export struct ProfileTab {
   openWeeklyReport(): void {
     ProfileApi.getWeeklyReport().then((result) => {
       this.onOpenReport(result.report)
+      NotificationStore.refreshUnreadCount()
     }).catch((err: Error) => {
       UiHelper.showToast(err.message)
     })
@@ -227,23 +252,10 @@ export struct ProfileTab {
   handleLogout(): void {
     AuthApi.logout().catch(() => {
     })
+    ProfileStore.clear()
     AuthSession.clear()
     UiHelper.showToast('已退出登录')
     UiHelper.replaceTo('pages/Login')
-  }
-
-  @Builder
-  buildStatChip(label: string, value: string) {
-    Column({ space: 4 }) {
-      Text(value)
-        .fontSize(16)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#31534A')
-      Text(label)
-        .fontSize(11)
-        .fontColor('#6E7C79')
-    }
-    .layoutWeight(1)
   }
 
   @Builder
@@ -449,9 +461,38 @@ export struct ProfileTab {
             .borderRadius(18)
 
           Row({ space: 8 }) {
-            this.buildStatChip('发帖', `${this.postCount}`)
-            this.buildStatChip('获赞', `${this.totalLikes}`)
-            this.buildStatChip('连续活跃', `${this.streakDays}天`)
+            Column({ space: 4 }) {
+              Text(`${this.postCount}`)
+                .fontSize(16)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#31534A')
+              Text('发帖')
+                .fontSize(11)
+                .fontColor('#6E7C79')
+            }
+            .layoutWeight(1)
+
+            Column({ space: 4 }) {
+              Text(`${this.totalLikes}`)
+                .fontSize(16)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#31534A')
+              Text('获赞')
+                .fontSize(11)
+                .fontColor('#6E7C79')
+            }
+            .layoutWeight(1)
+
+            Column({ space: 4 }) {
+              Text(`${this.activeDays}天`)
+                .fontSize(16)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#31534A')
+              Text('活跃天数')
+                .fontSize(11)
+                .fontColor('#6E7C79')
+            }
+            .layoutWeight(1)
           }
           .width('100%')
           .padding({ top: 4 })

@@ -5,6 +5,8 @@ import com.moodwalls.dto.LikeResponseDto;
 import com.moodwalls.dto.PostListResponseDto;
 import com.moodwalls.dto.PostSummaryDto;
 import com.moodwalls.dto.PublishPostResponseDto;
+import com.moodwalls.dto.MoodStatItemDto;
+import com.moodwalls.dto.MoodStatsDto;
 import com.moodwalls.dto.TodayStatsDto;
 import com.moodwalls.entity.Post;
 import com.moodwalls.entity.PostLike;
@@ -19,11 +21,14 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.temporal.TemporalAdjusters;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -180,26 +185,77 @@ public class PostService {
     }
 
     public TodayStatsDto getTodayStats() {
-        LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(ZoneId.of("Asia/Shanghai")), LocalTime.MIN);
-
-        List<Object[]> moodCounts = postRepository.countByMoodSince(startOfDay);
-        long total = postRepository.countActiveSince(startOfDay);
-
-        long anxious = 0, calm = 0, happy = 0;
-        for (Object[] row : moodCounts) {
-            String m = (String) row[0];
-            long cnt = ((Number) row[1]).longValue();
-            if (MoodHelper.isAnxiousGroup(m)) anxious += cnt;
-            else if (MoodHelper.isCalmGroup(m)) calm += cnt;
-            else if (MoodHelper.isHappyGroup(m)) happy += cnt;
+        MoodStatsDto stats = getMoodStats("today");
+        long anxious = 0;
+        long calm = 0;
+        long happy = 0;
+        for (MoodStatItemDto item : stats.getItems()) {
+            if (MoodHelper.isAnxiousGroup(item.getMood())) {
+                anxious += item.getCount();
+            } else if (MoodHelper.isCalmGroup(item.getMood())) {
+                calm += item.getCount();
+            } else if (MoodHelper.isHappyGroup(item.getMood())) {
+                happy += item.getCount();
+            }
         }
-
+        long total = stats.getTotalPosts();
         TodayStatsDto dto = new TodayStatsDto();
         dto.setAnxiousPercent(MoodHelper.percent(anxious, total));
         dto.setCalmPercent(MoodHelper.percent(calm, total));
         dto.setHappyPercent(MoodHelper.percent(happy, total));
         dto.setTotalPosts(total);
         return dto;
+    }
+
+    public MoodStatsDto getMoodStats(String periodParam) {
+        String period = normalizeStatsPeriod(periodParam);
+        LocalDateTime since = resolveStatsPeriodStart(period);
+        List<Object[]> moodCounts = postRepository.countByMoodSince(since);
+        long total = postRepository.countActiveSince(since);
+
+        List<MoodStatItemDto> items = new ArrayList<>();
+        for (Object[] row : moodCounts) {
+            String mood = (String) row[0];
+            long count = ((Number) row[1]).longValue();
+            if (count <= 0 || mood == null || mood.isBlank()) {
+                continue;
+            }
+            items.add(new MoodStatItemDto(
+                    mood,
+                    MoodHelper.labelOf(mood),
+                    MoodHelper.colorOf(mood),
+                    MoodHelper.percent(count, total),
+                    count
+            ));
+        }
+        items.sort((a, b) -> Long.compare(b.getCount(), a.getCount()));
+
+        MoodStatsDto dto = new MoodStatsDto();
+        dto.setPeriod(period);
+        dto.setTotalPosts(total);
+        dto.setItems(items);
+        return dto;
+    }
+
+    private String normalizeStatsPeriod(String periodParam) {
+        if (periodParam == null) {
+            return "today";
+        }
+        String period = periodParam.trim().toLowerCase();
+        if ("today".equals(period) || "week".equals(period) || "month".equals(period)) {
+            return period;
+        }
+        return "today";
+    }
+
+    private LocalDateTime resolveStatsPeriodStart(String period) {
+        ZoneId zone = ZoneId.of("Asia/Shanghai");
+        LocalDate today = LocalDate.now(zone);
+        return switch (period) {
+            case "week" -> today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).atStartOfDay();
+            case "month" -> today.withDayOfMonth(1).atStartOfDay();
+            default -> LocalDateTime.of(today, LocalTime.MIN);
+        };
     }
 
     private List<PostSummaryDto> toSummaries(List<Post> posts, Long currentUserId) {

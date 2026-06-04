@@ -1,6 +1,7 @@
 import { AuthSession } from '../common/AuthSession'
+import { NotificationStore } from '../common/NotificationStore'
 import { UiHelper } from '../common/UiHelper'
-import { getAvatarResource } from '../common/AvatarResources'
+import { MoodWallHeader } from '../components/MoodWallHeader'
 import { MoodWallTabBar } from '../components/MoodWallTabBar'
 import { SupportDialog } from '../components/SupportDialog'
 import { LOCATION_OPTIONS, MOOD_OPTIONS } from '../mock/MoodWallData'
@@ -15,76 +16,121 @@ import { ProfileTab } from '../tabs/ProfileTab'
 @Entry
 @Component
 struct Index {
-  @State currentTab: number = 0
+  @State @Watch('onCurrentTabChange') currentTab: number = 0
   @State filterMood: string = 'all'
   @State selectedMoodKey: string = 'calm'
   @State draftText: string = ''
   @State locationIndex: number = 0
-  @State supportVisible: boolean = false
+  @State @Watch('onSupportVisibleChange') supportVisible: boolean = false
   @State supportTitle: string = ''
   @State supportMessage: string = ''
   @State supportLoading: boolean = false
   @State notes: Array<NoteItem> = []
-  @State unreadCount: number = 0
   @State loadingMore: boolean = false
   @State loadingFirst: boolean = true
   @State isFeedRefreshing: boolean = false
   @State publishing: boolean = false
-  @State totalPosts: number = 0
-  @State anxiousPercent: number = 0
-  @State calmPercent: number = 0
-  @State happyPercent: number = 0
+  @State headerStatsRefreshTick: number = 0
+  @State profileRefreshTick: number = 0
 
   private currentPage: number = 1
   private hasMore: boolean = true
   private readonly PAGE_SIZE: number = 20
+  private unreadPollTimer: number = -1
 
   aboutToAppear(): void {
     if (!AuthSession.isLoggedIn()) {
       UiHelper.replaceTo('pages/Login')
       return
     }
-    console.info('[Index] aboutToAppear, anxiousPercent=' + this.anxiousPercent)
+    this.isFeedRefreshing = false
     this.loadStats()
     this.loadPosts(true)
+    this.refreshUnreadCount()
+    this.startUnreadPolling()
+  }
+
+  aboutToDisappear(): void {
+    this.stopUnreadPolling()
   }
 
   onPageShow(): void {
-    if (AuthSession.isLoggedIn()) {
-      this.loadStats()
+    if (!AuthSession.isLoggedIn()) {
+      return
+    }
+    this.loadStats()
+    this.refreshUnreadCount()
+    if (this.currentTab === 3) {
+      this.profileRefreshTick++
+    }
+    if (this.notes.length === 0 && !this.loadingFirst) {
       this.loadPosts(true)
     }
   }
 
-  loadStats(): void {
-    PostApi.getTodayStats()
-      .then((res) => {
-        this.anxiousPercent = res.anxiousPercent
-        this.calmPercent = res.calmPercent
-        this.happyPercent = res.happyPercent
-        this.totalPosts = res.totalPosts
-        console.info('[Index] anxiousPercent=' + this.anxiousPercent + ' totalPosts=' + this.totalPosts)
-      })
-      .catch((e: Error) => {
-        console.error('loadStats 失败: ' + e.message)
-      })
+  refreshUnreadCount(): void {
+    NotificationStore.refreshUnreadCount()
   }
 
-  loadPosts(refresh: boolean = false): void {
+  startUnreadPolling(): void {
+    this.stopUnreadPolling()
+    this.unreadPollTimer = setInterval(() => {
+      NotificationStore.refreshUnreadCount()
+    }, 12000)
+  }
+
+  stopUnreadPolling(): void {
+    if (this.unreadPollTimer >= 0) {
+      clearInterval(this.unreadPollTimer)
+      this.unreadPollTimer = -1
+    }
+  }
+
+  onCurrentTabChange(): void {
+    this.refreshUnreadCount()
+    if (this.currentTab === 3) {
+      this.profileRefreshTick++
+    }
+  }
+
+  onSupportVisibleChange(): void {
+    if (!this.supportVisible) {
+      this.refreshUnreadCount()
+    }
+  }
+
+  loadStats(): void {
+    this.headerStatsRefreshTick++
+  }
+
+  private finishPostsLoading(): void {
+    this.loadingFirst = false
+    this.loadingMore = false
+    this.isFeedRefreshing = false
+  }
+
+  loadPosts(refresh: boolean = false): Promise<void> {
     if (refresh) {
       this.currentPage = 1
       this.hasMore = true
     }
-    if (!this.hasMore && !refresh) return
-    if (this.loadingMore && !refresh) return
+    if (!this.hasMore && !refresh) {
+      this.finishPostsLoading()
+      return Promise.resolve()
+    }
+    if (this.loadingMore && !refresh) {
+      return Promise.resolve()
+    }
 
-    if (refresh) {
+    if (refresh && this.notes.length === 0) {
       this.loadingFirst = true
+    } else if (refresh) {
+      this.loadingFirst = false
     } else {
       this.loadingMore = true
     }
 
-    PostApi.getPosts(this.currentPage, this.PAGE_SIZE, this.filterMood, AuthSession.getToken())
+    return PostApi.getPosts(this.currentPage, this.PAGE_SIZE, this.filterMood, AuthSession.getToken())
       .then((res) => {
         if (refresh) {
           this.notes = res.list
@@ -93,12 +139,15 @@ struct Index {
         }
         this.hasMore = res.hasMore
         this.currentPage = res.page + 1
-        this.loadingFirst = false
-        this.loadingMore = false
       })
-      .catch(() => {
-        this.loadingFirst = false
-        this.loadingMore = false
+      .catch((e: Error) => {
+        console.error('loadPosts 失败: ' + e.message)
+        if (refresh && this.notes.length === 0) {
+          UiHelper.showToast('帖子加载失败，请检查后端与网络')
+        }
+      })
+      .finally(() => {
+        this.finishPostsLoading()
       })
   }
 
@@ -201,6 +250,7 @@ struct Index {
           .then((res) => {
             this.supportMessage = res.response
             this.supportLoading = false
+            this.refreshUnreadCount()
           })
           .catch((err: Error) => {
             console.error('[MoodWalls] supportPost failed: ' + (err.message || String(err)))
@@ -222,6 +272,7 @@ struct Index {
           .then((res) => {
             this.supportMessage = res.report
             this.supportLoading = false
+            this.refreshUnreadCount()
           })
           .catch(() => {
             this.supportMessage = '这周你的情绪底色更偏平静，说明你在忙碌里依然保留了稳定自己的能力。'
@@ -284,6 +335,7 @@ struct Index {
         this.supportLoading = false
         this.supportVisible = true
         this.loadStats()
+        this.profileRefreshTick++
       })
       .catch((e: Error) => {
         console.error('发帖失败: ' + e.message)
@@ -295,26 +347,33 @@ struct Index {
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
       Column() {
-        this.buildHeader()
+        MoodWallHeader({
+          currentTab: this.currentTab,
+          greeting: this.getGreeting(),
+          statsRefreshTick: this.headerStatsRefreshTick
+        })
 
-        if (this.loadingFirst) {
-          this.buildLoading()
+        if (this.currentTab === 0) {
+          if (this.loadingFirst) {
+            this.buildLoading()
+          } else {
+            FeedTab({
+              notes: $notes,
+              filterMood: this.filterMood,
+              onSupportNote: (note: NoteItem) => this.openSupport(note),
+              onFilterChange: (mood: string) => this.onFilterChange(mood),
+              onLoadMore: () => this.loadMorePosts(),
+              onRefresh: () => this.onRefresh(),
+              hasMore: this.hasMore,
+              loadingMore: this.loadingMore,
+              isRefreshing: $isFeedRefreshing
+            })
+              .layoutWeight(1)
+          }
         } else {
           Scroll() {
             Column({ space: 16 }) {
-              if (this.currentTab === 0) {
-                FeedTab({
-                  notes: $notes,
-                  filterMood: this.filterMood,
-                  onSupportNote: (note: NoteItem) => this.openSupport(note),
-                  onFilterChange: (mood: string) => this.onFilterChange(mood),
-                  onLoadMore: () => this.loadMorePosts(),
-                  onRefresh: () => this.onRefresh(),
-                  hasMore: this.hasMore,
-                  loadingMore: this.loadingMore,
-                  isRefreshing: $isFeedRefreshing
-                })
-              } else if (this.currentTab === 1) {
+              if (this.currentTab === 1) {
                 MapTab({
                   onNavigateToPost: () => {
                     this.currentTab = 2
@@ -330,10 +389,12 @@ struct Index {
                 })
               } else {
                 ProfileTab({
+                  profileRefreshTick: this.profileRefreshTick,
                   onOpenReport: (report: string) => {
                     this.supportTitle = '这一周的心情周报'
                     this.supportMessage = report
                     this.supportVisible = true
+                    this.refreshUnreadCount()
                   }
                 })
               }
@@ -354,7 +415,12 @@ struct Index {
       .height('100%')
       .backgroundColor('#F4F7F6')
 
-      MoodWallTabBar({ currentTab: $currentTab })
+      MoodWallTabBar({
+        currentTab: $currentTab,
+        onTabChange: () => {
+          this.refreshUnreadCount()
+        }
+      })
       SupportDialog({
         visible: $supportVisible,
         title: this.supportTitle,
@@ -385,95 +451,6 @@ struct Index {
     if (hour < 14) return '中午好'
     if (hour < 18) return '下午好'
     return '晚上好'
-  }
-
-  getSubtitle(): string {
-    if (this.currentTab === 1) {
-      return '看看此刻校园情绪落在哪些角落。'
-    }
-    if (this.currentTab === 2) {
-      return '写下一张心情纸条，贴进校园心墙。'
-    }
-    return '今天校园里又有一些心情落在了墙上。'
-  }
-
-
-  @Builder
-  buildHeader() {
-    Column({ space: 14 }) {
-      Row() {
-        Row({ space: 12 }) {
-          Image(getAvatarResource(AppStorage.get<string>('userAvatarKey') ?? 'avatar_01'))
-            .width(44)
-            .height(44)
-            .borderRadius(22)
-            .objectFit(ImageFit.Cover)
-            .border({ width: 2, color: '#E8F6EC' })
-
-          Column({ space: 4 }) {
-            Text(`${this.getGreeting()}，${AppStorage.get<string>('userNickname') ?? '同学'}`)
-              .fontSize(20)
-              .fontWeight(FontWeight.Bold)
-              .fontColor('#22352F')
-            Text(this.getSubtitle())
-              .fontSize(12)
-              .fontColor('#6B7C78')
-          }
-          .alignItems(HorizontalAlign.Start)
-          .layoutWeight(1)
-        }
-
-        Stack() {
-          Text('通知')
-            .fontSize(12)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#31534A')
-            .padding({ left: 12, right: 12, top: 10, bottom: 10 })
-            .backgroundColor('#F3F6F5')
-            .borderRadius(18)
-            .onClick(() => {
-              UiHelper.pushTo('pages/NotificationPage')
-            })
-
-          if (this.unreadCount > 0) {
-            Text(this.unreadCount > 99 ? '99+' : `${this.unreadCount}`)
-              .fontSize(9)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(Color.White)
-              .backgroundColor('#E17272')
-              .borderRadius(10)
-              .constraintSize({ minWidth: 18 })
-              .height(18)
-              .textAlign(TextAlign.Center)
-              .position({ x: this.unreadCount > 9 ? -10 : -6, y: -4 })
-          }
-        }
-      }
-      .justifyContent(FlexAlign.SpaceBetween)
-      .width('100%')
-
-      if (this.currentTab !== 2) {
-        Row({ space: 8 }) {
-          Row({ space: 6 }) {
-            Circle().width(8).height(8).fill('#D86A3D')
-            Text('焦虑 ' + this.anxiousPercent + '%').fontSize(11).fontWeight(FontWeight.Medium).fontColor('#D86A3D')
-          }.padding({ left: 12, right: 12, top: 8, bottom: 8 }).backgroundColor('#FFF1EB').borderRadius(18)
-
-          Row({ space: 6 }) {
-            Circle().width(8).height(8).fill('#33824A')
-            Text('平静 ' + this.calmPercent + '%').fontSize(11).fontWeight(FontWeight.Medium).fontColor('#33824A')
-          }.padding({ left: 12, right: 12, top: 8, bottom: 8 }).backgroundColor('#EEF9F1').borderRadius(18)
-
-          Row({ space: 6 }) {
-            Circle().width(8).height(8).fill('#A87400')
-            Text('开心 ' + this.happyPercent + '%').fontSize(11).fontWeight(FontWeight.Medium).fontColor('#A87400')
-          }.padding({ left: 12, right: 12, top: 8, bottom: 8 }).backgroundColor('#FFF7DB').borderRadius(18)
-        }.width('100%')
-      }
-    }
-    .width('100%')
-    .padding({ left: 18, right: 18, top: 18, bottom: 16 })
-    .backgroundColor('#F9FBFA')
   }
 
 }

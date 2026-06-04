@@ -12,6 +12,7 @@ export interface ProfileOverview {
   postCount: number
   totalLikes: number
   streakDays: number
+  activeDays: number
   moodClimate: string
   weekStats: WeekStats
 }

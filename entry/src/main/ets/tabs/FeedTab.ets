@@ -44,25 +44,30 @@ export struct FeedTab {
     const idx: number = this.notes.findIndex((n: NoteItem) => n.id === noteId)
     if (idx < 0) return
     const note: NoteItem = this.notes[idx]
-    if (!note.liked) {
-      this.applyNoteUpdate(noteId, note.likes + 1, true)
-    }
 
     const token: string = AuthSession.getToken()
-    if (token.length > 0) {
-      PostApi.likePost(noteId, token)
-        .then((res) => {
-          this.applyNoteUpdate(noteId, res.likes, res.liked)
-        })
-        .catch((e: Error) => {
-          console.error('点赞操作失败: ' + e.message)
-          const msg = e.message || ''
-          if (msg.includes('未登录') || msg.includes('Token') || msg.includes('401')) {
-            UiHelper.showToast('请先登录后再点赞')
-          }
-          this.applyNoteUpdate(noteId, note.likes, note.liked ?? false)
-        })
+    if (token.length === 0) {
+      UiHelper.showToast('请先登录后再点赞')
+      return
     }
+
+    const nextLiked: boolean = !(note.liked === true)
+    const nextLikes: number = nextLiked ? note.likes + 1 : Math.max(0, note.likes - 1)
+    this.applyNoteUpdate(noteId, nextLikes, nextLiked)
+
+    PostApi.likePost(noteId, token)
+      .then((res) => {
+        this.applyNoteUpdate(noteId, res.likes, res.liked)
+      })
+      .catch((e: Error) => {
+        console.error('点赞操作失败: ' + e.message)
+        UiHelper.showToast(e.message || '点赞失败，请稍后重试')
+        this.applyNoteUpdate(noteId, note.likes, note.liked === true)
+      })
+  }
+
+  aboutToAppear(): void {
+    this.isRefreshing = false
   }
 
   build() {
@@ -143,17 +148,12 @@ export struct FeedTab {
       }
       .scrollBar(BarState.Off)
     }
-    .onStateChange((state: number) => {
-      if (state === 1) {
-        this.isRefreshing = true
-        this.onRefresh()
-      }
-      if (state === 2) {
-        this.isRefreshing = false
-      }
+    .onRefreshing(() => {
+      this.onRefresh()
     })
     .width('100%')
     .layoutWeight(1)
+    .padding({ left: 16, right: 16, top: 10, bottom: 120 })
   }
 
   @Builder

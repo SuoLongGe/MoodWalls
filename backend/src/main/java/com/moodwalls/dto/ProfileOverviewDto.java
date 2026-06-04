@@ -9,6 +9,7 @@ public class ProfileOverviewDto {
     private long postCount;
     private long totalLikes;
     private int streakDays;
+    private int activeDays;
     private String moodClimate;
     private WeekStatsDto weekStats;
 
@@ -66,6 +67,14 @@ public class ProfileOverviewDto {
 
     public void setStreakDays(int streakDays) {
         this.streakDays = streakDays;
+    }
+
+    public int getActiveDays() {
+        return activeDays;
+    }
+
+    public void setActiveDays(int activeDays) {
+        this.activeDays = activeDays;
     }
 
     public String getMoodClimate() {

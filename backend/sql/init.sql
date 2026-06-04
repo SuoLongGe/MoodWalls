@@ -65,7 +65,46 @@ CREATE TABLE IF NOT EXISTS post_likes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='帖子点赞记录';
 
 -- ============================================================
--- 4. AI 互动记录（「接住心声」等）
+-- 4. 帖子情绪反应表（单人单帖唯一）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS post_reactions (
+  id            BIGINT      NOT NULL AUTO_INCREMENT,
+  user_id       BIGINT      NOT NULL COMMENT '反应用户ID',
+  post_id       BIGINT      NOT NULL COMMENT '帖子ID',
+  reaction_type VARCHAR(32) NOT NULL COMMENT '反应类型：hug/understand/cheer/happy_for_you/with_you',
+  created_at    DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  updated_at    DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_post_reactions_user_post (user_id, post_id),
+  KEY idx_post_reactions_post_id (post_id),
+  KEY idx_post_reactions_type (reaction_type),
+  CONSTRAINT fk_post_reactions_user FOREIGN KEY (user_id) REFERENCES users (id),
+  CONSTRAINT fk_post_reactions_post FOREIGN KEY (post_id) REFERENCES posts (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='帖子情绪反应记录';
+
+-- ============================================================
+-- 5. 帖子评论表（共鸣/悄悄话）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS post_comments (
+  id           BIGINT       NOT NULL AUTO_INCREMENT,
+  post_id      BIGINT       NOT NULL COMMENT '关联帖子ID',
+  user_id      BIGINT       NOT NULL COMMENT '评论用户ID',
+  content      VARCHAR(200) NOT NULL COMMENT '评论内容',
+  comment_type VARCHAR(16)  NOT NULL COMMENT '评论类型：resonance/whisper',
+  status       TINYINT      NOT NULL DEFAULT 1 COMMENT '状态：1正常 0删除 2审核拦截',
+  created_at   DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  updated_at   DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (id),
+  KEY idx_post_comments_post_id (post_id),
+  KEY idx_post_comments_user_id (user_id),
+  KEY idx_post_comments_type (comment_type),
+  KEY idx_post_comments_status_created (status, created_at),
+  CONSTRAINT fk_post_comments_post FOREIGN KEY (post_id) REFERENCES posts (id),
+  CONSTRAINT fk_post_comments_user FOREIGN KEY (user_id) REFERENCES users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='帖子评论记录';
+
+-- ============================================================
+-- 6. AI 互动记录（「接住心声」等）
 -- ============================================================
 CREATE TABLE IF NOT EXISTS ai_interactions (
   id            BIGINT      NOT NULL AUTO_INCREMENT,
@@ -85,7 +124,7 @@ CREATE TABLE IF NOT EXISTS ai_interactions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI互动记录';
 
 -- ============================================================
--- 5. 校园区域配置表
+-- 7. 校园区域配置表
 -- ============================================================
 CREATE TABLE IF NOT EXISTS campus_zones (
   id          BIGINT       NOT NULL AUTO_INCREMENT,
@@ -103,7 +142,7 @@ CREATE TABLE IF NOT EXISTS campus_zones (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='校园区域配置';
 
 -- ============================================================
--- 6. 位置与区域映射表
+-- 8. 位置与区域映射表
 -- ============================================================
 CREATE TABLE IF NOT EXISTS location_zone_mappings (
   id            BIGINT       NOT NULL AUTO_INCREMENT,
@@ -116,7 +155,7 @@ CREATE TABLE IF NOT EXISTS location_zone_mappings (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='发帖位置与区域映射';
 
 -- ============================================================
--- 7. 用户每日情绪统计（个人日历）
+-- 9. 用户每日情绪统计（个人日历）
 -- ============================================================
 CREATE TABLE IF NOT EXISTS user_daily_moods (
   id             BIGINT      NOT NULL AUTO_INCREMENT,
@@ -134,7 +173,7 @@ CREATE TABLE IF NOT EXISTS user_daily_moods (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户每日情绪统计';
 
 -- ============================================================
--- 8. 通知表
+-- 10. 通知表
 -- ============================================================
 CREATE TABLE IF NOT EXISTS notifications (
   id         BIGINT       NOT NULL AUTO_INCREMENT,

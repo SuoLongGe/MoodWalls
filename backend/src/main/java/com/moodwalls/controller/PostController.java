@@ -6,6 +6,7 @@ import com.moodwalls.dto.LikeResponseDto;
 import com.moodwalls.dto.PostListResponseDto;
 import com.moodwalls.dto.PostSummaryDto;
 import com.moodwalls.dto.PublishPostResponseDto;
+import com.moodwalls.dto.MoodStatsDto;
 import com.moodwalls.dto.TodayStatsDto;
 import com.moodwalls.security.TokenUtil;
 import com.moodwalls.service.PostService;
@@ -63,6 +64,17 @@ public class PostController {
     @GetMapping("/stats/today")
     public ApiResponse<TodayStatsDto> getTodayStats() {
         TodayStatsDto result = postService.getTodayStats();
+        return ApiResponse.ok(result);
+    }
+
+    /**
+     * 校园心墙情绪占比：按时间段统计各 mood 发帖占比，仅返回有帖子的情绪类型。
+     * period: today | week | month
+     */
+    @GetMapping("/stats/moods")
+    public ApiResponse<MoodStatsDto> getMoodStats(
+            @RequestParam(value = "period", defaultValue = "today") String period) {
+        MoodStatsDto result = postService.getMoodStats(period);
         return ApiResponse.ok(result);
     }
 

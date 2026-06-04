@@ -1,6 +1,7 @@
 @Component
 export struct MoodWallTabBar {
   @Link currentTab: number
+  onTabChange: () => void = () => {}
 
   @Builder
   buildTabItem(index: number, label: string) {
@@ -14,7 +15,10 @@ export struct MoodWallTabBar {
       .backgroundColor(this.currentTab === index ? '#CBEADF' : '#FFFFFF')
       .borderRadius(18)
       .onClick(() => {
-        this.currentTab = index
+        if (this.currentTab !== index) {
+          this.currentTab = index
+          this.onTabChange()
+        }
       })
   }
 

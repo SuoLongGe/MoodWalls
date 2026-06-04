@@ -1,34 +1,71 @@
-import { router } from '@kit.ArkUI'
 import { AuthSession } from '../common/AuthSession'
+import { NotificationStore } from '../common/NotificationStore'
+import { UiHelper } from '../common/UiHelper'
 import { MoodApi } from '../service/MoodApi'
 import { NotificationItem } from '../model/MoodWallTypes'
 
 @Entry
 @Component
 struct NotificationPage {
+  @StorageLink('unreadNotificationCount') unreadCount: number = 0
   @State notifications: Array<NotificationItem> = []
   @State loading: boolean = true
-  @State unreadCount: number = 0
+  @State markingAll: boolean = false
 
   aboutToAppear(): void {
     this.loadNotifications()
   }
 
+  onPageShow(): void {
+    this.loadNotifications()
+  }
+
   loadNotifications(): void {
     const token: string = AuthSession.getToken()
+    if (token.length === 0) {
+      UiHelper.replaceTo('pages/Login')
+      return
+    }
     this.loading = true
     MoodApi.getNotifications(token, 1, 50)
       .then((res) => {
         this.notifications = res.list
+        this.syncUnreadFromList()
+      })
+      .catch((err: Error) => {
+        UiHelper.showToast(err.message || '通知加载失败')
+      })
+      .finally(() => {
         this.loading = false
       })
-      .catch(() => {
-        this.loading = false
+
+    MoodApi.getUnreadCount(token)
+      .then((res) => {
+        NotificationStore.setUnreadCount(res.count)
       })
+      .catch(() => {})
+  }
+
+  syncUnreadFromList(): void {
+    let count: number = 0
+    this.notifications.forEach((item: NotificationItem) => {
+      if (!item.isRead) {
+        count++
+      }
+    })
+    NotificationStore.setUnreadCount(count)
   }
 
   markAllRead(): void {
+    if (this.markingAll) {
+      return
+    }
     const token: string = AuthSession.getToken()
+    if (token.length === 0) {
+      UiHelper.showToast('请先登录')
+      return
+    }
+    this.markingAll = true
     MoodApi.readAllNotifications(token)
       .then(() => {
         const updated: Array<NotificationItem> = []
@@ -45,6 +82,14 @@ struct NotificationPage {
           })
         })
         this.notifications = updated
+        NotificationStore.setUnreadCount(0)
+        UiHelper.showToast('已全部标记为已读')
+      })
+      .catch((err: Error) => {
+        UiHelper.showToast(err.message || '操作失败，请稍后重试')
+      })
+      .finally(() => {
+        this.markingAll = false
       })
   }
 
@@ -65,7 +110,9 @@ struct NotificationPage {
   }
 
   formatTime(dateStr: string): string {
-    if (!dateStr) return ''
+    if (dateStr.length === 0) {
+      return ''
+    }
     try {
       const d: Date = new Date(dateStr)
       const now: Date = new Date()
@@ -90,25 +137,32 @@ struct NotificationPage {
           .fontSize(14)
           .fontWeight(FontWeight.Bold)
           .fontColor('#31534A')
+          .padding(12)
           .onClick(() => {
-            router.back()
+            UiHelper.goBack()
           })
 
-        Blank()
+        Text('通知')
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#25332F')
+          .layoutWeight(1)
+          .textAlign(TextAlign.Center)
 
-        Text('全部已读')
+        Text(this.markingAll ? '处理中' : '全部已读')
           .fontSize(12)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#31534A')
+          .fontColor(this.notifications.length > 0 ? '#31534A' : '#B0B8B6')
           .padding({ left: 12, right: 12, top: 8, bottom: 8 })
           .backgroundColor('#F3F6F5')
           .borderRadius(16)
+          .enabled(this.notifications.length > 0 && !this.markingAll)
           .onClick(() => {
             this.markAllRead()
           })
       }
       .width('100%')
-      .padding({ left: 18, right: 18, top: 16, bottom: 14 })
+      .padding({ left: 6, right: 18, top: 8, bottom: 14 })
 
       if (this.loading) {
         Column() {
