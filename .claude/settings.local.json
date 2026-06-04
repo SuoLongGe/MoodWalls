@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mysql -u root -phjy89607425 moodwalls -e \"SELECT COUNT(*) as cnt FROM posts;\")",
+      "Bash(mysql:*)",
+      "Bash(time curl -s -w \"\\nHTTP_CODE:%{http_code}\" --max-time 30 http://localhost:8080/api/posts/2/support -X POST -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIzIiwicGhvbmUiOiIxMzkwMDAwMDAwMSIsImlhdCI6MTc4MDQ3NzMxOSwiZXhwIjoxNzgxMDgyMTE5fQ.vke4ceFGaHGUnDMjfbUHoWTi7SqU8axOpKRZm3mvXAs\" -H \"Content-Type: application/json\")",
+      "Bash(rg:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
