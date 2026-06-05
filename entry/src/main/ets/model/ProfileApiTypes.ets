@@ -43,6 +43,11 @@ export interface PostSummary {
   color: string
   createdAt: string
   timeText: string
+  avatarKey?: string
+  isMine?: boolean
+  commentCount?: number
+  visibility?: string
+  canDelete?: boolean
 }
 
 export interface PostListResponse {

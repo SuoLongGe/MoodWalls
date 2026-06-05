@@ -1,7 +1,11 @@
+import { AppTheme } from '../common/AppTheme'
 import { NoteItem } from '../model/MoodWallTypes'
 import { PostApi } from '../service/PostApi'
 import { AuthSession } from '../common/AuthSession'
 import { UiHelper } from '../common/UiHelper'
+import { NoteHelper } from '../common/NoteHelper'
+import { PostActionHelper } from '../common/PostActionHelper'
+import { PostCard } from '../components/PostCard'
 
 @Component
 export struct FeedTab {
@@ -20,24 +24,21 @@ export struct FeedTab {
     const u: NoteItem[] = this.notes.concat()
     const i: number = u.findIndex((n: NoteItem) => n.id === noteId)
     if (i >= 0) {
-      u[i] = {
-        id: u[i].id,
-        userId: u[i].userId,
-        nickname: u[i].nickname,
-        mood: u[i].mood,
-        moodLabel: u[i].moodLabel,
-        text: u[i].text,
-        location: u[i].location,
-        zoneKey: u[i].zoneKey,
-        timeText: u[i].timeText,
-        likes: likes,
-        liked: liked,
-        color: u[i].color,
-        createdAt: u[i].createdAt
-      }
+      u[i] = NoteHelper.copy(u[i], likes, liked)
       this.notes = u
       this.refreshKey++
     }
+  }
+
+  private removeNote(noteId: number): void {
+    const u: NoteItem[] = []
+    this.notes.forEach((n: NoteItem) => {
+      if (n.id !== noteId) {
+        u.push(n)
+      }
+    })
+    this.notes = u
+    this.refreshKey++
   }
 
   private handleLike(noteId: number): void {
@@ -66,6 +67,58 @@ export struct FeedTab {
       })
   }
 
+  private handleDelete(noteId: number): void {
+    const token: string = AuthSession.getToken()
+    if (token.length === 0) {
+      UiHelper.showToast('请先登录')
+      return
+    }
+
+    UiHelper.showConfirmDialog('删除帖子', '删除后无法恢复，确定吗？', () => {
+      PostApi.deletePost(noteId, token)
+        .then(() => {
+          this.removeNote(noteId)
+          UiHelper.markFeedNeedsRefresh()
+          UiHelper.showToast('已删除')
+        })
+        .catch((e: Error) => {
+          console.error('删帖失败: ' + e.message)
+          UiHelper.showToast(e.message || '删除失败，请稍后重试')
+        })
+    })
+  }
+
+  private handleVisibility(note: NoteItem, visibility: string): void {
+    const token: string = AuthSession.getToken()
+    if (token.length === 0) {
+      UiHelper.showToast('请先登录')
+      return
+    }
+    PostApi.updateVisibility(note.id, visibility, token)
+      .then(() => {
+        if (visibility === 'private') {
+          this.removeNote(note.id)
+        }
+        UiHelper.markFeedNeedsRefresh()
+        UiHelper.showToast(visibility === 'private' ? '已设为仅自己可见' : '已恢复公开')
+      })
+      .catch((e: Error) => {
+        UiHelper.showToast(e.message || '操作失败，请稍后重试')
+      })
+  }
+
+  private showPostActions(note: NoteItem): void {
+    PostActionHelper.showMenu(
+      note,
+      () => {
+        this.handleDelete(note.id)
+      },
+      (visibility: string) => {
+        this.handleVisibility(note, visibility)
+      }
+    )
+  }
+
   aboutToAppear(): void {
     this.isRefreshing = false
   }
@@ -78,7 +131,27 @@ export struct FeedTab {
           List() {
             ForEach(this.notes, (item: NoteItem) => {
               ListItem() {
-                this.buildNoteCard(item)
+                PostCard({
+                  note: item,
+                  onLike: (noteId: number) => {
+                    this.handleLike(noteId)
+                  },
+                  onSupport: (note: NoteItem) => {
+                    this.onSupportNote(note)
+                  },
+                  onComment: (note: NoteItem) => {
+                    UiHelper.pushToPostDetail(note.id, true)
+                  },
+                  onOpen: (note: NoteItem) => {
+                    UiHelper.pushToPostDetail(note.id)
+                  },
+                  onMore: (note: NoteItem) => {
+                    this.showPostActions(note)
+                  },
+                  onLongPress: (note: NoteItem) => {
+                    this.showPostActions(note)
+                  }
+                })
               }
               .padding({ bottom: 14 })
             }, (item: NoteItem) => `${item.id}-${this.refreshKey}`)
@@ -153,7 +226,7 @@ export struct FeedTab {
     })
     .width('100%')
     .layoutWeight(1)
-    .padding({ left: 16, right: 16, top: 10, bottom: 120 })
+    .padding({ left: 16, right: 16, top: 10, bottom: 18 })
   }
 
   @Builder
@@ -167,6 +240,8 @@ export struct FeedTab {
         this.buildFilterChip('anxious', '焦虑')
         this.buildFilterChip('sad', '低落')
         this.buildFilterChip('tired', '疲惫')
+        this.buildFilterChip('angry', '生气')
+        this.buildFilterChip('lonely', '孤单')
       }
       .padding({ top: 6, bottom: 6 })
     }
@@ -179,88 +254,20 @@ export struct FeedTab {
     Text(label)
       .fontSize(12)
       .fontWeight(this.filterMood === key ? FontWeight.Bold : FontWeight.Medium)
-      .fontColor(this.filterMood === key ? Color.White : '#60706C')
+      .fontColor(this.filterMood === key ? Color.White : AppTheme.TEXT_HINT)
       .padding({ left: 14, right: 14, top: 9, bottom: 9 })
-      .backgroundColor(this.filterMood === key ? '#31534A' : Color.White)
-      .borderRadius(18)
+      .backgroundColor(this.filterMood === key ? AppTheme.PRIMARY : AppTheme.CARD)
+      .borderRadius(AppTheme.RADIUS_PILL)
+      .shadow({
+        radius: this.filterMood === key ? 0 : 6,
+        color: AppTheme.SHADOW_LIGHT,
+        offsetY: 2
+      })
+      .animation({ duration: AppTheme.TAB_ENTER_MS, curve: Curve.Smooth })
       .onClick(() => {
         if (this.filterMood !== key) {
           this.onFilterChange(key)
         }
       })
-  }
-
-  @Builder
-  buildNoteCard(item: NoteItem) {
-    Column({ space: 12 }) {
-      Row() {
-        Text(item.moodLabel)
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(item.color)
-          .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-          .backgroundColor('#FFFFFF')
-          .borderRadius(16)
-        Text(item.timeText)
-          .fontSize(11)
-          .fontColor('#95A19F')
-        if (item.nickname) {
-          Text(item.nickname)
-            .fontSize(11)
-            .fontColor('#B0B8B6')
-        }
-      }
-      .justifyContent(FlexAlign.SpaceBetween)
-      .width('100%')
-
-      Text(item.text)
-        .fontSize(15)
-        .lineHeight(23)
-        .fontColor('#25332F')
-
-      Text(`位置：${item.location}`)
-        .fontSize(12)
-        .fontColor('#7C8A87')
-
-      Row() {
-        this.buildLikeButton(item)
-
-        Text('接住心声')
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#31534A')
-          .padding({ left: 16, right: 16, top: 9, bottom: 9 })
-          .backgroundColor('#F3F8F6')
-          .borderRadius(18)
-          .onClick(() => {
-            this.onSupportNote(item)
-          })
-      }
-      .justifyContent(FlexAlign.SpaceBetween)
-      .width('100%')
-    }
-    .width('100%')
-    .padding(16)
-    .backgroundColor(Color.White)
-    .borderRadius(24)
-    .border({ width: { left: 5 }, color: item.color })
-  }
-
-  @Builder
-  buildLikeButton(item: NoteItem) {
-    Column({ space: 4 }) {
-      Text(item.liked ? '❤' : '🤍')
-        .fontSize(18)
-        .fontColor(item.liked ? '#E85A5A' : '#B0B8B6')
-      Text(`${item.likes}`)
-        .fontSize(11)
-        .fontColor(item.liked ? '#E85A5A' : '#7D8A88')
-    }
-    .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-    .backgroundColor(item.liked ? '#FFF0F0' : '#F5F5F5')
-    .borderRadius(12)
-    .onClick(() => {
-      this.handleLike(item.id)
-    })
   }
 }

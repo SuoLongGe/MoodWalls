@@ -32,6 +32,11 @@ export class AuthSession {
     return key !== undefined && key.length > 0 ? key : 'avatar_01'
   }
 
+  static getUserId(): number {
+    const id: number | undefined = AppStorage.get<number>(AuthSession.KEY_USER_ID)
+    return id !== undefined ? id : 0
+  }
+
   static isLoggedIn(): boolean {
     const logged: boolean | undefined = AppStorage.get<boolean>(AuthSession.KEY_LOGGED_IN)
     return logged === true && AuthSession.getToken().length > 0

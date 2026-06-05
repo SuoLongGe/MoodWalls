@@ -119,7 +119,7 @@ public class ProfileService {
         );
 
         List<PostSummaryDto> list = result.getContent().stream()
-                .map(post -> toPostSummary(post, user.getNickname()))
+                .map(post -> toPostSummary(post, user))
                 .collect(Collectors.toList());
 
         PostListResponseDto response = new PostListResponseDto();
@@ -243,11 +243,11 @@ public class ProfileService {
         return days;
     }
 
-    private PostSummaryDto toPostSummary(Post post, String nickname) {
+    private PostSummaryDto toPostSummary(Post post, User user) {
         PostSummaryDto dto = new PostSummaryDto();
         dto.setId(post.getId());
         dto.setUserId(post.getUserId());
-        dto.setNickname(nickname);
+        dto.setNickname(user.getNickname());
         dto.setMood(post.getMood());
         dto.setMoodLabel(MoodHelper.labelOf(post.getMood()));
         dto.setText(post.getContent());
@@ -258,6 +258,11 @@ public class ProfileService {
         dto.setColor(MoodHelper.colorOf(post.getMood()));
         dto.setCreatedAt(post.getCreatedAt().toString());
         dto.setTimeText(MoodHelper.formatTimeText(post.getCreatedAt()));
+        dto.setAvatarKey(user.getAvatarKey() != null ? user.getAvatarKey() : "avatar_01");
+        dto.setMine(true);
+        dto.setCommentCount(post.getCommentCount() != null ? post.getCommentCount() : 0);
+        dto.setVisibility(post.getVisibility() != null && post.getVisibility() == 2 ? "private" : "public");
+        dto.setCanDelete(true);
         return dto;
     }
 }

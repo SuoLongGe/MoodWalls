@@ -1,4 +1,5 @@
 import { HttpClient } from './HttpClient'
+import { AuthSession } from '../common/AuthSession'
 import {
   LikeResponse,
   LikeResponseFromApi,
@@ -33,16 +34,47 @@ export interface CreatePostBody {
   zoneKey?: string
 }
 
+export interface UpdateVisibilityBody {
+  visibility: string
+}
+
 export class PostApi {
 
   private static resolveLiked(liked?: boolean, isLiked?: boolean): boolean {
     return liked === true || isLiked === true
   }
 
+  private static toUserId(value: number | string | undefined | null): number {
+    if (value === undefined || value === null) {
+      return 0
+    }
+    if (typeof value === 'number') {
+      return Math.floor(value)
+    }
+    const parsed: number = parseInt(`${value}`, 10)
+    return Number.isNaN(parsed) ? 0 : parsed
+  }
+
+  private static resolveIsMine(item: NoteItemFromApi): boolean {
+    if (item.isMine === true || item.mine === true) {
+      return true
+    }
+    if (item.canDelete === true) {
+      return true
+    }
+    const currentUserId: number = AuthSession.getUserId()
+    const postUserId: number = PostApi.toUserId(item.userId)
+    if (currentUserId > 0 && postUserId > 0 && postUserId === currentUserId) {
+      return true
+    }
+    return false
+  }
+
   private static normalizeNote(item: NoteItemFromApi): NoteItem {
+    const isMine: boolean = PostApi.resolveIsMine(item)
     const result: NoteItem = {
       id: item.id,
-      userId: item.userId,
+      userId: PostApi.toUserId(item.userId),
       nickname: item.nickname,
       mood: item.mood,
       moodLabel: item.moodLabel,
@@ -53,7 +85,14 @@ export class PostApi {
       likes: item.likes,
       liked: PostApi.resolveLiked(item.liked, item.isLiked),
       color: item.color,
-      createdAt: item.createdAt
+      createdAt: item.createdAt,
+      avatarKey: item.avatarKey !== undefined && item.avatarKey.length > 0
+        ? item.avatarKey
+        : (isMine ? AuthSession.getAvatarKey() : 'avatar_01'),
+      isMine: isMine,
+      commentCount: item.commentCount !== undefined ? item.commentCount : 0,
+      visibility: item.visibility !== undefined && item.visibility.length > 0 ? item.visibility : 'public',
+      canDelete: item.canDelete === true || isMine
     }
     return result
   }
@@ -83,6 +122,36 @@ export class PostApi {
       hasMore: hasMore === true
     }
     return result
+  }
+
+  static searchPosts(
+    keyword: string,
+    page: number = 1,
+    size: number = 20,
+    mood: string = 'all',
+    period: string = 'all',
+    token?: string
+  ): Promise<PostListResponse> {
+    const queryKeyword: string = encodeURIComponent(keyword.trim())
+    const queryMood: string = encodeURIComponent(mood)
+    const queryPeriod: string = encodeURIComponent(period)
+    const path = `/posts/search?keyword=${queryKeyword}&page=${page}&size=${size}&mood=${queryMood}&period=${queryPeriod}`
+    return HttpClient.get<PostListResponse>(path, token).then((res: PostListResponse) => {
+      const list: NoteItem[] = []
+      const rawList: NoteItemFromApi[] = res.list !== undefined && res.list !== null ? res.list as NoteItemFromApi[] : []
+      rawList.forEach((item: NoteItemFromApi) => {
+        list.push(PostApi.normalizeNote(item))
+      })
+      return PostApi.buildPostListResponse(
+        list,
+        res.total,
+        res.page,
+        res.size,
+        res.hasMore,
+        page,
+        size
+      )
+    })
   }
 
   static getPosts(
@@ -129,6 +198,12 @@ export class PostApi {
 
   static deletePost(postId: number, token: string): Promise<void> {
     return HttpClient.delete(`/posts/${postId}`, token)
+  }
+
+  static updateVisibility(postId: number, visibility: string, token: string): Promise<NoteItem> {
+    const body: UpdateVisibilityBody = { visibility: visibility }
+    return HttpClient.put<NoteItemFromApi>(`/posts/${postId}/visibility`, body, token)
+      .then((item: NoteItemFromApi) => PostApi.normalizeNote(item))
   }
 
   static likePost(postId: number, token: string): Promise<LikeResponse> {

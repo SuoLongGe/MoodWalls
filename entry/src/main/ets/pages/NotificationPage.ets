@@ -1,6 +1,8 @@
+import { AppTheme } from '../common/AppTheme'
 import { AuthSession } from '../common/AuthSession'
 import { NotificationStore } from '../common/NotificationStore'
 import { UiHelper } from '../common/UiHelper'
+import { PageHeader } from '../components/PageHeader'
 import { MoodApi } from '../service/MoodApi'
 import { NotificationItem } from '../model/MoodWallTypes'
 
@@ -11,6 +13,7 @@ struct NotificationPage {
   @State notifications: Array<NotificationItem> = []
   @State loading: boolean = true
   @State markingAll: boolean = false
+  @StorageLink('themeMode') themeMode: string = 'light'
 
   aboutToAppear(): void {
     this.loadNotifications()
@@ -96,6 +99,8 @@ struct NotificationPage {
   getTypeLabel(type: string): string {
     if (type === 'like') return '点赞'
     if (type === 'support') return '接住心声'
+    if (type === 'comment') return '评论'
+    if (type === 'reply') return '回复'
     if (type === 'system') return '系统通知'
     if (type === 'weekly_report') return '温情周报'
     return type
@@ -104,9 +109,59 @@ struct NotificationPage {
   getTypeColor(type: string): string {
     if (type === 'like') return '#F08C62'
     if (type === 'support') return '#73C088'
+    if (type === 'comment') return '#6CB1F0'
+    if (type === 'reply') return '#B786F7'
     if (type === 'system') return '#92A0B0'
     if (type === 'weekly_report') return '#B786F7'
     return '#6E7C79'
+  }
+
+  private markNotificationRead(item: NotificationItem): void {
+    if (item.isRead) {
+      return
+    }
+    const token: string = AuthSession.getToken()
+    if (token.length === 0) {
+      return
+    }
+    MoodApi.readNotification(item.id, token).catch(() => {})
+    const updated: Array<NotificationItem> = []
+    this.notifications.forEach((row: NotificationItem) => {
+      if (row.id === item.id) {
+        updated.push({
+          id: row.id,
+          type: row.type,
+          title: row.title,
+          content: row.content,
+          refType: row.refType,
+          refId: row.refId,
+          isRead: true,
+          createdAt: row.createdAt
+        })
+      } else {
+        updated.push(row)
+      }
+    })
+    this.notifications = updated
+    this.syncUnreadFromList()
+  }
+
+  private openNotificationTarget(item: NotificationItem): void {
+    this.markNotificationRead(item)
+
+    const postTypes: string[] = ['comment', 'reply', 'like', 'support']
+    if (postTypes.indexOf(item.type) >= 0 && item.refType === 'post' && item.refId !== null && item.refId > 0) {
+      const scrollToComments: boolean = item.type === 'like' || item.type === 'comment' || item.type === 'reply'
+      UiHelper.pushToPostDetail(item.refId, scrollToComments)
+      return
+    }
+
+    if (item.type === 'weekly_report') {
+      UiHelper.showToast('请在「我的」页查看温情周报')
+      return
+    }
+
+    UiHelper.showToast(item.content)
   }
 
   formatTime(dateStr: string): string {
@@ -130,39 +185,51 @@ struct NotificationPage {
     }
   }
 
+  @Builder
+  buildMarkAllAction() {
+    Text(this.markingAll ? '处理中' : '全部已读')
+      .fontSize(11)
+      .fontWeight(FontWeight.Bold)
+      .fontColor(this.notifications.length > 0 ? AppTheme.PRIMARY : AppTheme.TEXT_MUTED)
+      .padding({ left: 10, right: 10, top: 7, bottom: 7 })
+      .backgroundColor(AppTheme.SURFACE)
+      .borderRadius(AppTheme.RADIUS_MD)
+      .enabled(this.notifications.length > 0 && !this.markingAll)
+      .onClick(() => {
+        this.markAllRead()
+      })
+  }
+
+  pageTransition() {
+    PageTransitionEnter({ duration: AppTheme.PAGE_PUSH_MS, curve: Curve.FastOutSlowIn })
+      .slide(SlideEffect.Right)
+      .opacity(0)
+      .scale({ x: 0.92, y: 0.92 })
+    PageTransitionExit({ duration: AppTheme.PAGE_PUSH_MS - 80, curve: Curve.EaseIn })
+      .slide(SlideEffect.Left)
+      .opacity(0.5)
+      .scale({ x: 0.96, y: 0.96 })
+    PageTransitionEnter({ type: RouteType.Pop, duration: AppTheme.PAGE_POP_MS, curve: Curve.FastOutSlowIn })
+      .slide(SlideEffect.Left)
+      .opacity(0)
+      .scale({ x: 0.92, y: 0.92 })
+    PageTransitionExit({ type: RouteType.Pop, duration: AppTheme.PAGE_POP_MS - 60, curve: Curve.EaseIn })
+      .slide(SlideEffect.Right)
+      .opacity(0)
+      .scale({ x: 0.94, y: 0.94 })
+  }
+
   build() {
     Column() {
-      Row() {
-        Text('← 返回')
-          .fontSize(14)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#31534A')
-          .padding(12)
-          .onClick(() => {
-            UiHelper.goBack()
-          })
-
-        Text('通知')
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#25332F')
-          .layoutWeight(1)
-          .textAlign(TextAlign.Center)
-
-        Text(this.markingAll ? '处理中' : '全部已读')
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.notifications.length > 0 ? '#31534A' : '#B0B8B6')
-          .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-          .backgroundColor('#F3F6F5')
-          .borderRadius(16)
-          .enabled(this.notifications.length > 0 && !this.markingAll)
-          .onClick(() => {
-            this.markAllRead()
-          })
-      }
-      .width('100%')
-      .padding({ left: 6, right: 18, top: 8, bottom: 14 })
+      PageHeader({
+        title: '通知',
+        onBack: () => {
+          UiHelper.goBack()
+        },
+        rightAction: () => {
+          this.buildMarkAllAction()
+        }
+      })
 
       if (this.loading) {
         Column() {
@@ -239,8 +306,16 @@ struct NotificationPage {
               }
               .width('100%')
               .padding(16)
-              .backgroundColor(item.isRead ? '#FAFBFC' : Color.White)
-              .borderRadius(20)
+              .backgroundColor(item.isRead ? '#FAFBFC' : AppTheme.CARD)
+              .borderRadius(AppTheme.RADIUS_LG)
+              .shadow({
+                radius: item.isRead ? 4 : 10,
+                color: AppTheme.SHADOW_LIGHT,
+                offsetY: 2
+              })
+              .onClick(() => {
+                this.openNotificationTarget(item)
+              })
             }
             .margin({ bottom: 10 })
           }, (item: NotificationItem) => `${item.id}`)
@@ -253,6 +328,6 @@ struct NotificationPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F4F7F6')
+    .backgroundColor(AppTheme.BG)
   }
 }

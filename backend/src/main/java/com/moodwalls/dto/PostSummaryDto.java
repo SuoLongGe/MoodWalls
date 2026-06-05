@@ -1,5 +1,7 @@
 package com.moodwalls.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class PostSummaryDto {
 
     private Long id;
@@ -11,10 +13,18 @@ public class PostSummaryDto {
     private String location;
     private String zoneKey;
     private int likes;
+    @JsonProperty("isLiked")
     private boolean isLiked;
     private String color;
     private String createdAt;
     private String timeText;
+    private String avatarKey;
+    @JsonProperty("isMine")
+    private boolean isMine;
+    private int commentCount;
+    private String visibility;
+    @JsonProperty("canDelete")
+    private boolean canDelete;
 
     public Long getId() {
         return id;
@@ -118,5 +128,45 @@ public class PostSummaryDto {
 
     public void setTimeText(String timeText) {
         this.timeText = timeText;
+    }
+
+    public String getAvatarKey() {
+        return avatarKey;
+    }
+
+    public void setAvatarKey(String avatarKey) {
+        this.avatarKey = avatarKey;
+    }
+
+    public boolean isMine() {
+        return isMine;
+    }
+
+    public void setMine(boolean mine) {
+        isMine = mine;
+    }
+
+    public int getCommentCount() {
+        return commentCount;
+    }
+
+    public void setCommentCount(int commentCount) {
+        this.commentCount = commentCount;
+    }
+
+    public String getVisibility() {
+        return visibility;
+    }
+
+    public void setVisibility(String visibility) {
+        this.visibility = visibility;
+    }
+
+    public boolean isCanDelete() {
+        return canDelete;
+    }
+
+    public void setCanDelete(boolean canDelete) {
+        this.canDelete = canDelete;
     }
 }

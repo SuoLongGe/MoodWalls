@@ -1,3 +1,4 @@
+import { AppTheme } from '../common/AppTheme'
 import { LOCATION_OPTIONS, MOOD_OPTIONS } from '../mock/MoodWallData'
 import { MoodOption } from '../model/MoodWallTypes'
 
@@ -47,9 +48,15 @@ export struct PostTab {
             .fontWeight(FontWeight.Medium)
             .fontColor(this.selectedMoodKey === item.key ? Color.White : '#4C5B57')
             .padding({ top: 18, bottom: 18 })
-            .backgroundColor(this.selectedMoodKey === item.key ? '#31534A' : Color.White)
-            .borderRadius(20)
+            .backgroundColor(this.selectedMoodKey === item.key ? AppTheme.PRIMARY : AppTheme.CARD)
+            .borderRadius(AppTheme.RADIUS_LG)
             .margin({ bottom: 10 })
+            .shadow({
+              radius: this.selectedMoodKey === item.key ? 0 : 6,
+              color: AppTheme.SHADOW_LIGHT,
+              offsetY: 2
+            })
+            .animation({ duration: AppTheme.TAB_ENTER_MS, curve: Curve.Smooth })
             .onClick(() => {
               this.selectedMoodKey = item.key
             })
@@ -62,8 +69,8 @@ export struct PostTab {
           .fontColor('#75837F')
         TextArea({ text: this.draftText, placeholder: '写下这一刻真实的感受...' })
           .height(220)
-          .backgroundColor('#FFFFFF')
-          .borderRadius(24)
+          .backgroundColor(AppTheme.CARD)
+          .borderRadius(AppTheme.RADIUS_LG)
           .fontSize(15)
           .placeholderColor('#A0AAA8')
           .onChange((value: string) => {
@@ -76,8 +83,13 @@ export struct PostTab {
       }
       .width('100%')
       .padding(16)
-      .backgroundColor('#FFFFFF')
-      .borderRadius(24)
+      .backgroundColor(AppTheme.CARD)
+      .borderRadius(AppTheme.RADIUS_LG)
+      .shadow({
+        radius: 12,
+        color: AppTheme.SHADOW_LIGHT,
+        offsetY: 4
+      })
 
       Row() {
         Text(`${this.getTextLength()}/500`)
@@ -101,14 +113,14 @@ export struct PostTab {
           Text(LOCATION_OPTIONS[this.locationIndex])
             .fontSize(14)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#31534A')
+            .fontColor(AppTheme.PRIMARY)
         }
         .alignItems(HorizontalAlign.Start)
 
         Text('切换')
           .fontSize(12)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#31534A')
+          .fontColor(AppTheme.PRIMARY)
           .onClick(() => {
             this.locationIndex = (this.locationIndex + 1) % LOCATION_OPTIONS.length
           })
@@ -125,8 +137,13 @@ export struct PostTab {
         .fontWeight(FontWeight.Bold)
         .fontColor(Color.White)
         .padding({ top: 14, bottom: 14 })
-        .backgroundColor('#31534A')
-        .borderRadius(24)
+        .backgroundColor(AppTheme.PRIMARY)
+        .borderRadius(AppTheme.RADIUS_PILL)
+        .shadow({
+          radius: 14,
+          color: AppTheme.SHADOW,
+          offsetY: 4
+        })
         .opacity(this.getButtonOpacity())
         .onClick(() => {
           if (this.isPublishEnabled()) {

@@ -1,4 +1,5 @@
 import { AuthTheme } from '../common/AuthTheme'
+import { AppTheme } from '../common/AppTheme'
 import { AuthSession } from '../common/AuthSession'
 import { AVATAR_KEYS, getAvatarResource } from '../common/AvatarResources'
 import { UiHelper } from '../common/UiHelper'
@@ -8,6 +9,10 @@ import { NotificationStore } from '../common/NotificationStore'
 import { ProfileStore } from '../common/ProfileStore'
 import { AuthApi } from '../service/AuthApi'
 import { ProfileApi } from '../service/ProfileApi'
+import { MoodStatItem } from '../model/MoodWallTypes'
+import { PostApi } from '../service/PostApi'
+
+type StatsPeriod = 'today' | 'week' | 'month'
 
 @Component
 export struct ProfileTab {
@@ -32,24 +37,72 @@ export struct ProfileTab {
   @StorageLink('profileCalmPercent') calmPercent: number = 0
   @StorageLink('profileAnxiousPercent') anxiousPercent: number = 0
   @StorageLink('profileHappyPercent') happyPercent: number = 0
+  @StorageLink('unreadNotificationCount') unreadCount: number = 0
+  @StorageLink('themeMode') themeMode: string = 'light'
   @State loadingProfile: boolean = true
 
   @State calendarMonth: string = ''
   @State calendarCells: Array<CalendarCell> = []
   @State calendarTitle: string = ''
 
+  @State moodPeriod: StatsPeriod = 'week'
+  @State moodStats: Array<MoodStatItem> = []
+  @State moodStatsLoading: boolean = false
+
   aboutToAppear(): void {
     ProfileStore.ensureInitialized()
     this.calendarMonth = ProfileTab.formatMonthKey(new Date())
     this.refreshProfile()
     this.loadArchive()
+    this.fetchMoodStats()
   }
 
   onProfileRefreshTick(): void {
     if (this.profileRefreshTick > 0) {
       this.loadOverview()
       this.reloadCalendar()
+      this.fetchMoodStats()
     }
+  }
+
+  private fetchMoodStats(): void {
+    this.moodStatsLoading = true
+    PostApi.getMoodStats(this.moodPeriod).then((res) => {
+      this.moodStats = res.items
+      this.moodStatsLoading = false
+    }).catch((err: Error) => {
+      console.error(`fetchMoodStats: ${err.message}`)
+      this.moodStats = []
+      this.moodStatsLoading = false
+    })
+  }
+
+  private selectMoodPeriod(period: StatsPeriod): void {
+    if (this.moodPeriod === period) {
+      return
+    }
+    this.moodPeriod = period
+    this.fetchMoodStats()
+  }
+
+  private periodLabel(period: StatsPeriod): string {
+    if (period === 'today') return '本日'
+    if (period === 'month') return '本月'
+    return '本周'
+  }
+
+  @Builder
+  buildPeriodChip(period: StatsPeriod) {
+    Text(this.periodLabel(period))
+      .fontSize(12)
+      .fontWeight(this.moodPeriod === period ? FontWeight.Bold : FontWeight.Medium)
+      .fontColor(this.moodPeriod === period ? AppTheme.PRIMARY : AppTheme.TEXT_SECONDARY)
+      .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+      .backgroundColor(this.moodPeriod === period ? AppTheme.PRIMARY_SOFT : AppTheme.SURFACE)
+      .borderRadius(14)
+      .onClick(() => {
+        this.selectMoodPeriod(period)
+      })
   }
 
   static formatMonthKey(date: Date): string {
@@ -295,18 +348,18 @@ export struct ProfileTab {
       Text(label)
         .width(46)
         .fontSize(12)
-        .fontColor('#6E7C79')
+        .fontColor(AppTheme.TEXT_SECONDARY)
       Stack({ alignContent: Alignment.Start }) {
         Row()
           .width('100%')
           .height(28)
-          .backgroundColor('#F4F7F6')
+          .backgroundColor(AppTheme.SURFACE)
           .borderRadius(14)
         Row() {
           Text(`${percent}%`)
             .fontSize(11)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#284138')
+            .fontColor(AppTheme.TEXT_PRIMARY)
         }
         .height(28)
         .width(`${percent}%`)
@@ -324,15 +377,20 @@ export struct ProfileTab {
     Row() {
       Text(title)
         .fontSize(14)
-        .fontColor('#31534A')
+        .fontColor(AppTheme.PRIMARY)
       Text('>')
         .fontSize(14)
-        .fontColor('#9AA8B5')
+        .fontColor(AppTheme.TEXT_HINT)
     }
     .width('100%')
     .justifyContent(FlexAlign.SpaceBetween)
     .padding({ top: 14, bottom: 14 })
     .onClick(() => onTap())
+  }
+
+  private toggleTheme(): void {
+    const next: string = this.themeMode === 'dark' ? 'light' : 'dark'
+    AppStorage.setOrCreate('themeMode', next)
   }
 
   @Builder
@@ -434,24 +492,70 @@ export struct ProfileTab {
     .borderRadius(24)
   }
 
+  getBadgeText(): string {
+    if (this.unreadCount > 99) {
+      return '99+'
+    }
+    return `${this.unreadCount}`
+  }
+
+  @Builder
+  buildProfileNotificationButton() {
+    Row({ space: 4 }) {
+      Text('通知')
+        .fontSize(12)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#31534A')
+      if (this.unreadCount > 0) {
+        Text(this.getBadgeText())
+          .fontSize(9)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(Color.White)
+          .backgroundColor('#E17272')
+          .borderRadius(8)
+          .constraintSize({ minWidth: 16 })
+          .height(16)
+          .padding({ left: 4, right: 4 })
+          .textAlign(TextAlign.Center)
+      }
+    }
+    .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+    .backgroundColor('#F3F6F5')
+    .borderRadius(16)
+    .onClick(() => {
+      UiHelper.pushTo('pages/NotificationPage')
+    })
+  }
+
   build() {
     Stack({ alignContent: Alignment.Top }) {
       Column({ space: 16 }) {
         Column({ space: 12 }) {
-          Image(getAvatarResource(this.userAvatarKey))
-            .width(72)
-            .height(72)
-            .borderRadius(36)
-            .objectFit(ImageFit.Cover)
+          Row({ space: 12 }) {
+            Image(getAvatarResource(this.userAvatarKey))
+              .width(72)
+              .height(72)
+              .borderRadius(36)
+              .objectFit(ImageFit.Cover)
 
-          Text(this.userNickname)
-            .fontSize(24)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#31534A')
+            Column({ space: 6 }) {
+              Text(this.userNickname)
+                .fontSize(22)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#31534A')
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+              Text(`账号：${this.userAccount}`)
+                .fontSize(12)
+                .fontColor('#6E7C79')
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
 
-          Text(`账号：${this.userAccount}`)
-            .fontSize(12)
-            .fontColor('#6E7C79')
+            this.buildProfileNotificationButton()
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
 
           Text(`心情气候：${this.moodClimate}`)
             .fontSize(12)
@@ -465,10 +569,10 @@ export struct ProfileTab {
               Text(`${this.postCount}`)
                 .fontSize(16)
                 .fontWeight(FontWeight.Bold)
-                .fontColor('#31534A')
+                .fontColor(AppTheme.PRIMARY)
               Text('发帖')
                 .fontSize(11)
-                .fontColor('#6E7C79')
+                .fontColor(AppTheme.TEXT_SECONDARY)
             }
             .layoutWeight(1)
 
@@ -476,10 +580,10 @@ export struct ProfileTab {
               Text(`${this.totalLikes}`)
                 .fontSize(16)
                 .fontWeight(FontWeight.Bold)
-                .fontColor('#31534A')
+                .fontColor(AppTheme.PRIMARY)
               Text('获赞')
                 .fontSize(11)
-                .fontColor('#6E7C79')
+                .fontColor(AppTheme.TEXT_SECONDARY)
             }
             .layoutWeight(1)
 
@@ -487,10 +591,10 @@ export struct ProfileTab {
               Text(`${this.activeDays}天`)
                 .fontSize(16)
                 .fontWeight(FontWeight.Bold)
-                .fontColor('#31534A')
+                .fontColor(AppTheme.PRIMARY)
               Text('活跃天数')
                 .fontSize(11)
-                .fontColor('#6E7C79')
+                .fontColor(AppTheme.TEXT_SECONDARY)
             }
             .layoutWeight(1)
           }
@@ -499,7 +603,7 @@ export struct ProfileTab {
         }
         .width('100%')
         .padding(20)
-        .backgroundColor('#FFFFFF')
+        .backgroundColor(AppTheme.CARD)
         .borderRadius(24)
 
         Column({ space: 0 }) {
@@ -507,11 +611,16 @@ export struct ProfileTab {
           Divider().color('#F0F4F8')
           this.buildSettingRow('我的帖子', () => UiHelper.pushTo('pages/MyPostsPage'))
           Divider().color('#F0F4F8')
+          this.buildSettingRow(
+            this.themeMode === 'dark' ? '深色模式（已开启）' : '深色模式',
+            () => this.toggleTheme()
+          )
+          Divider().color('#F0F4F8')
           this.buildSettingRow('退出登录', () => this.handleLogout())
         }
         .width('100%')
         .padding({ left: 18, right: 18 })
-        .backgroundColor('#FFFFFF')
+        .backgroundColor(AppTheme.CARD)
         .borderRadius(24)
 
         Column({ space: 12 }) {
@@ -519,19 +628,19 @@ export struct ProfileTab {
             Text('情绪日历')
               .fontSize(16)
               .fontWeight(FontWeight.Bold)
-              .fontColor('#25332F')
+              .fontColor(AppTheme.TEXT_TITLE)
             Blank()
             Text('<')
               .fontSize(16)
-              .fontColor('#6E7C79')
+              .fontColor(AppTheme.TEXT_SECONDARY)
               .padding(8)
               .onClick(() => this.shiftCalendarMonth(-1))
             Text(this.calendarTitle.length > 0 ? this.calendarTitle : '本月')
               .fontSize(13)
-              .fontColor('#31534A')
+              .fontColor(AppTheme.PRIMARY)
             Text('>')
               .fontSize(16)
-              .fontColor('#6E7C79')
+              .fontColor(AppTheme.TEXT_SECONDARY)
               .padding(8)
               .onClick(() => this.shiftCalendarMonth(1))
           }
@@ -561,19 +670,36 @@ export struct ProfileTab {
         .borderRadius(24)
 
         Column({ space: 12 }) {
-          Text('这一周，走过的情绪')
-            .fontSize(16)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#25332F')
-          if (this.loadingProfile) {
+          Row({ space: 10 }) {
+            Text('走过的情绪')
+              .fontSize(16)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#25332F')
+            Blank()
+            Row({ space: 8 }) {
+              this.buildPeriodChip('today')
+              this.buildPeriodChip('week')
+              this.buildPeriodChip('month')
+            }
+          }
+          .width('100%')
+
+          if (this.moodStatsLoading) {
             LoadingProgress()
               .width(28)
               .height(28)
               .color(AuthTheme.PRIMARY)
+          } else if (this.moodStats.length === 0) {
+            Text('该时段暂无心情记录')
+              .fontSize(12)
+              .fontColor('#95A19F')
+              .width('100%')
+              .textAlign(TextAlign.Center)
+              .padding({ top: 8, bottom: 8 })
           } else {
-            this.buildProgressRow('平静', this.calmPercent, '#73C088')
-            this.buildProgressRow('焦虑', this.anxiousPercent, '#F08C62')
-            this.buildProgressRow('开心', this.happyPercent, '#F6C445')
+            ForEach(this.moodStats, (item: MoodStatItem) => {
+              this.buildProgressRow(item.label, item.percent, item.color)
+            }, (item: MoodStatItem) => `${this.moodPeriod}-${item.mood}`)
           }
           Text('翻开温情周报')
             .fontSize(13)

@@ -1,4 +1,5 @@
 import { AuthTheme } from '../common/AuthTheme'
+import { AppTheme } from '../common/AppTheme'
 import { AuthSession } from '../common/AuthSession'
 import { UiHelper } from '../common/UiHelper'
 import { AuthInput } from '../components/auth/AuthInput'
@@ -16,6 +17,15 @@ struct Login {
     if (AuthSession.isLoggedIn()) {
       UiHelper.replaceTo('pages/Index')
     }
+  }
+
+  pageTransition() {
+    PageTransitionEnter({ duration: AppTheme.PAGE_FADE_ENTER_MS, curve: Curve.FastOutSlowIn })
+      .opacity(0)
+      .translate({ y: 32 })
+    PageTransitionExit({ duration: AppTheme.PAGE_FADE_EXIT_MS, curve: Curve.EaseIn })
+      .opacity(0)
+      .translate({ y: -24 })
   }
 
   handleLogin(): void {

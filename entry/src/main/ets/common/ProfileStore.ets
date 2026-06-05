@@ -44,6 +44,9 @@ export class ProfileStore {
     if (overview.phone.length > 0) {
       AppStorage.setOrCreate('userAccount', overview.phone)
     }
+    if (overview.id > 0) {
+      AppStorage.setOrCreate(AuthSession.KEY_USER_ID, overview.id)
+    }
     console.info(
       `[MoodWalls] profile stats: posts=${overview.postCount} likes=${overview.totalLikes} activeDays=${overview.activeDays}`
     )

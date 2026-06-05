@@ -1,5 +1,8 @@
+import { AppTheme } from '../common/AppTheme'
 import { AuthSession } from '../common/AuthSession'
+import { NoteHelper } from '../common/NoteHelper'
 import { NotificationStore } from '../common/NotificationStore'
+import { ProfileStore } from '../common/ProfileStore'
 import { UiHelper } from '../common/UiHelper'
 import { MoodWallHeader } from '../components/MoodWallHeader'
 import { MoodWallTabBar } from '../components/MoodWallTabBar'
@@ -30,13 +33,17 @@ struct Index {
   @State loadingFirst: boolean = true
   @State isFeedRefreshing: boolean = false
   @State publishing: boolean = false
-  @State headerStatsRefreshTick: number = 0
   @State profileRefreshTick: number = 0
+  @State tabContentOpacity: number = 1
+  @State tabContentOffsetY: number = 0
+  @State tabContentScale: number = 1
+  @StorageLink('themeMode') themeMode: string = 'light'
 
   private currentPage: number = 1
   private hasMore: boolean = true
   private readonly PAGE_SIZE: number = 20
   private unreadPollTimer: number = -1
+  private lastPostDetailRefreshTick: number = 0
 
   aboutToAppear(): void {
     if (!AuthSession.isLoggedIn()) {
@@ -44,7 +51,7 @@ struct Index {
       return
     }
     this.isFeedRefreshing = false
-    this.loadStats()
+    ProfileStore.refreshFromApi().catch(() => {})
     this.loadPosts(true)
     this.refreshUnreadCount()
     this.startUnreadPolling()
@@ -58,8 +65,15 @@ struct Index {
     if (!AuthSession.isLoggedIn()) {
       return
     }
-    this.loadStats()
     this.refreshUnreadCount()
+    const detailTick: number | undefined = AppStorage.get<number>('postDetailRefreshTick')
+    const nextDetailTick: number = detailTick !== undefined ? detailTick : 0
+    if (nextDetailTick > this.lastPostDetailRefreshTick) {
+      this.lastPostDetailRefreshTick = nextDetailTick
+      if (this.currentTab === 0) {
+        this.loadPosts(true)
+      }
+    }
     if (this.currentTab === 3) {
       this.profileRefreshTick++
     }
@@ -91,16 +105,29 @@ struct Index {
     if (this.currentTab === 3) {
       this.profileRefreshTick++
     }
+    this.tabContentOpacity = 0.15
+    this.tabContentOffsetY = 36
+    this.tabContentScale = 0.92
+    animateTo({ duration: AppTheme.TAB_ENTER_MS, curve: Curve.FastOutSlowIn }, () => {
+      this.tabContentOpacity = 1
+      this.tabContentOffsetY = 0
+      this.tabContentScale = 1
+    })
+  }
+
+  pageTransition() {
+    PageTransitionEnter({ duration: AppTheme.PAGE_FADE_ENTER_MS, curve: Curve.FastOutSlowIn })
+      .opacity(0)
+      .translate({ y: 28 })
+    PageTransitionExit({ duration: AppTheme.PAGE_FADE_EXIT_MS, curve: Curve.EaseIn })
+      .opacity(0)
+      .translate({ y: -20 })
   }
 
   onSupportVisibleChange(): void {
     if (!this.supportVisible) {
       this.refreshUnreadCount()
     }
-  }
-
-  loadStats(): void {
-    this.headerStatsRefreshTick++
   }
 
   private finishPostsLoading(): void {
@@ -163,26 +190,14 @@ struct Index {
   }
 
   onRefresh(): void {
-    this.loadStats()
     this.loadPosts(true)
+    if (this.currentTab === 3) {
+      this.profileRefreshTick++
+    }
   }
 
   private buildNoteItem(src: NoteItem, likes: number, liked: boolean): NoteItem {
-    return {
-      id: src.id,
-      userId: src.userId,
-      nickname: src.nickname,
-      mood: src.mood,
-      moodLabel: src.moodLabel,
-      text: src.text,
-      location: src.location,
-      zoneKey: src.zoneKey,
-      timeText: src.timeText,
-      likes: likes,
-      liked: liked,
-      color: src.color,
-      createdAt: src.createdAt
-    }
+    return NoteHelper.copy(src, likes, liked)
   }
 
   likeNote(noteId: number): void {
@@ -195,21 +210,7 @@ struct Index {
 
     if (!note.liked) {
       const updated: NoteItem[] = this.notes.concat()
-      updated[idx] = {
-        id: note.id,
-        userId: note.userId,
-        nickname: note.nickname,
-        mood: note.mood,
-        moodLabel: note.moodLabel,
-        text: note.text,
-        location: note.location,
-        zoneKey: note.zoneKey,
-        timeText: note.timeText,
-        likes: note.likes + 1,
-        liked: true,
-        color: note.color,
-        createdAt: note.createdAt
-      }
+      updated[idx] = NoteHelper.copy(note, note.likes + 1, true)
       this.notes = updated
     }
 
@@ -311,7 +312,7 @@ struct Index {
     }, token)
       .then((res) => {
         const aiResponse: string = res.aiResponse ?? '你已经很努力了。先把这份情绪放在这里，慢慢呼吸一下，再给自己一点点缓冲空间。'
-        const newNote: NoteItem = {
+        const newNote: NoteItem = NoteHelper.copy({
           id: res.post.id,
           userId: res.post.userId,
           nickname: res.post.nickname,
@@ -324,8 +325,13 @@ struct Index {
           likes: res.post.likes,
           liked: false,
           color: res.post.color,
-          createdAt: res.post.createdAt
-        }
+          createdAt: res.post.createdAt,
+          avatarKey: res.post.avatarKey !== undefined ? res.post.avatarKey : AuthSession.getAvatarKey(),
+          isMine: true,
+          commentCount: res.post.commentCount !== undefined ? res.post.commentCount : 0,
+          visibility: res.post.visibility !== undefined ? res.post.visibility : 'public',
+          canDelete: true
+        })
         this.notes = [newNote, ...this.notes]
         this.draftText = ''
         this.publishing = false
@@ -334,7 +340,6 @@ struct Index {
         this.supportMessage = aiResponse
         this.supportLoading = false
         this.supportVisible = true
-        this.loadStats()
         this.profileRefreshTick++
       })
       .catch((e: Error) => {
@@ -345,82 +350,94 @@ struct Index {
   }
 
   build() {
-    Stack({ alignContent: Alignment.Bottom }) {
+    Stack() {
       Column() {
-        MoodWallHeader({
-          currentTab: this.currentTab,
-          greeting: this.getGreeting(),
-          statsRefreshTick: this.headerStatsRefreshTick
-        })
+        Column() {
+          if (this.currentTab !== 3) {
+            MoodWallHeader({
+              currentTab: this.currentTab,
+              greeting: this.getGreeting()
+            })
+          }
 
-        if (this.currentTab === 0) {
-          if (this.loadingFirst) {
-            this.buildLoading()
-          } else {
-            FeedTab({
-              notes: $notes,
-              filterMood: this.filterMood,
-              onSupportNote: (note: NoteItem) => this.openSupport(note),
-              onFilterChange: (mood: string) => this.onFilterChange(mood),
-              onLoadMore: () => this.loadMorePosts(),
-              onRefresh: () => this.onRefresh(),
-              hasMore: this.hasMore,
-              loadingMore: this.loadingMore,
-              isRefreshing: $isFeedRefreshing
-            })
-              .layoutWeight(1)
-          }
-        } else {
-          Scroll() {
-            Column({ space: 16 }) {
-              if (this.currentTab === 1) {
-                MapTab({
-                  onNavigateToPost: () => {
-                    this.currentTab = 2
-                  }
-                })
-              } else if (this.currentTab === 2) {
-                PostTab({
-                  selectedMoodKey: $selectedMoodKey,
-                  draftText: $draftText,
-                  locationIndex: $locationIndex,
-                  publishing: this.publishing,
-                  onPublish: () => this.publishNote()
-                })
+          Column() {
+            if (this.currentTab === 0) {
+              if (this.loadingFirst) {
+                this.buildLoading()
               } else {
-                ProfileTab({
-                  profileRefreshTick: this.profileRefreshTick,
-                  onOpenReport: (report: string) => {
-                    this.supportTitle = '这一周的心情周报'
-                    this.supportMessage = report
-                    this.supportVisible = true
-                    this.refreshUnreadCount()
-                  }
+                FeedTab({
+                  notes: $notes,
+                  filterMood: this.filterMood,
+                  onSupportNote: (note: NoteItem) => this.openSupport(note),
+                  onFilterChange: (mood: string) => this.onFilterChange(mood),
+                  onLoadMore: () => this.loadMorePosts(),
+                  onRefresh: () => this.onRefresh(),
+                  hasMore: this.hasMore,
+                  loadingMore: this.loadingMore,
+                  isRefreshing: $isFeedRefreshing
                 })
+                  .layoutWeight(1)
               }
+            } else {
+              Scroll() {
+                Column({ space: 16 }) {
+                  if (this.currentTab === 1) {
+                    MapTab({
+                      onNavigateToPost: () => {
+                        this.currentTab = 2
+                      }
+                    })
+                  } else if (this.currentTab === 2) {
+                    PostTab({
+                      selectedMoodKey: $selectedMoodKey,
+                      draftText: $draftText,
+                      locationIndex: $locationIndex,
+                      publishing: this.publishing,
+                      onPublish: () => this.publishNote()
+                    })
+                  } else {
+                    ProfileTab({
+                      profileRefreshTick: this.profileRefreshTick,
+                      onOpenReport: (report: string) => {
+                        this.supportTitle = '这一周的心情周报'
+                        this.supportMessage = report
+                        this.supportVisible = true
+                        this.refreshUnreadCount()
+                      }
+                    })
+                  }
+                }
+                .padding({
+                  left: 16,
+                  right: 16,
+                  top: this.currentTab === 3 ? 12 : 10,
+                  bottom: 18
+                })
+                .width('100%')
+              }
+              .scrollBar(BarState.Off)
+              .layoutWeight(1)
             }
-            .padding({
-              left: 16,
-              right: 16,
-              top: this.currentTab === 3 ? 18 : 10,
-              bottom: 120
-            })
-            .width('100%')
           }
-          .scrollBar(BarState.Off)
           .layoutWeight(1)
+          .opacity(this.tabContentOpacity)
+          .translate({ y: this.tabContentOffsetY })
+          .scale({ x: this.tabContentScale, y: this.tabContentScale })
         }
+        .layoutWeight(1)
+        .width('100%')
+
+        MoodWallTabBar({
+          currentTab: $currentTab,
+          onTabChange: () => {
+            this.refreshUnreadCount()
+          }
+        })
       }
       .width('100%')
       .height('100%')
-      .backgroundColor('#F4F7F6')
+      .backgroundColor(AppTheme.BG)
 
-      MoodWallTabBar({
-        currentTab: $currentTab,
-        onTabChange: () => {
-          this.refreshUnreadCount()
-        }
-      })
       SupportDialog({
         visible: $supportVisible,
         title: this.supportTitle,
@@ -437,7 +454,7 @@ struct Index {
     Column() {
       Text('加载中...')
         .fontSize(14)
-        .fontColor('#7C8A87')
+        .fontColor(AppTheme.TEXT_HINT)
     }
     .width('100%')
     .layoutWeight(1)

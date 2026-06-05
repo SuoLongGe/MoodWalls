@@ -1,3 +1,4 @@
+import { AppTheme } from '../common/AppTheme'
 import { AuthTheme } from '../common/AuthTheme'
 import { AuthSession } from '../common/AuthSession'
 import { AVATAR_KEYS, getAvatarResource } from '../common/AvatarResources'
@@ -23,6 +24,15 @@ struct Register {
 
   aboutToAppear(): void {
     this.refreshCaptcha()
+  }
+
+  pageTransition() {
+    PageTransitionEnter({ duration: AppTheme.PAGE_FADE_ENTER_MS, curve: Curve.FastOutSlowIn })
+      .opacity(0)
+      .translate({ y: 32 })
+    PageTransitionExit({ duration: AppTheme.PAGE_FADE_EXIT_MS, curve: Curve.EaseIn })
+      .opacity(0)
+      .translate({ y: -24 })
   }
 
   refreshCaptcha(): void {

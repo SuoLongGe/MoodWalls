@@ -12,6 +12,12 @@ export interface NoteItem {
   liked?: boolean
   color: string
   createdAt?: string
+  avatarKey?: string
+  isMine?: boolean
+  mine?: boolean
+  commentCount?: number
+  visibility?: string
+  canDelete?: boolean
 }
 
 export interface PostDetailResponse extends NoteItem {
@@ -46,6 +52,12 @@ export interface NoteItemFromApi {
   isLiked?: boolean
   color: string
   createdAt?: string
+  avatarKey?: string
+  isMine?: boolean
+  mine?: boolean
+  commentCount?: number
+  visibility?: string
+  canDelete?: boolean
 }
 
 export interface LikeResponseFromApi {
@@ -151,4 +163,52 @@ export interface NotificationListResponse {
   page: number
   size: number
   hasMore: boolean
+}
+
+export interface CommentReplyItem {
+  id: number
+  postId: number
+  userId: number
+  parentId: number
+  authorNickname: string
+  authorAvatarKey?: string
+  content: string
+  commentType: string
+  replyToNickname?: string
+  isMine?: boolean
+  canDelete?: boolean
+  createdAt: string
+  timeText: string
+}
+
+export interface CommentItem {
+  id: number
+  postId: number
+  userId: number
+  authorNickname: string
+  authorAvatarKey?: string
+  content: string
+  commentType: string
+  parentId?: number | null
+  replyToNickname?: string
+  isMine?: boolean
+  canDelete?: boolean
+  createdAt: string
+  timeText: string
+  replies: Array<CommentReplyItem>
+}
+
+export interface CommentListResponse {
+  list: Array<CommentItem>
+  total: number
+  page: number
+  size: number
+  hasMore: boolean
+}
+
+export interface CreateCommentBody {
+  content: string
+  commentType?: string
+  parentId?: number | null
+  replyToUserId?: number | null
 }

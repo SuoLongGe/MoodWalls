@@ -4,6 +4,8 @@
     "pages/Register",
     "pages/Index",
     "pages/MyPostsPage",
+    "pages/PostDetailPage",
+    "pages/SearchPage",
     "pages/NotificationPage"
   ]
 }

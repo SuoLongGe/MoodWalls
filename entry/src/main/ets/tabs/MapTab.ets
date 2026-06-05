@@ -1,5 +1,6 @@
 import { ZoneCard, ZonePostItem } from '../model/MoodWallTypes'
 import { MoodApi } from '../service/MoodApi'
+import { AppTheme } from '../common/AppTheme'
 
 @Component
 export struct MapTab {
@@ -57,12 +58,12 @@ export struct MapTab {
         Text(this.selectedZoneTitle)
           .fontSize(18)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#25332F')
+          .fontColor(AppTheme.TEXT_TITLE)
         Blank()
         Text('关闭')
           .fontSize(13)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#7A8784')
+          .fontColor(AppTheme.TEXT_HINT)
           .onClick(() => {
             this.showZoneSheet = false
           })
@@ -75,7 +76,7 @@ export struct MapTab {
           LoadingProgress()
             .width(32)
             .height(32)
-            .color('#31534A')
+            .color(AppTheme.PRIMARY)
         }
         .width('100%')
         .padding(40)
@@ -83,7 +84,7 @@ export struct MapTab {
       } else if (this.zonePosts.length === 0) {
         Text('该区域暂无心情纸条')
           .fontSize(13)
-          .fontColor('#95A19F')
+          .fontColor(AppTheme.TEXT_HINT)
           .padding(40)
       } else {
         List() {
@@ -93,21 +94,21 @@ export struct MapTab {
                 Text(item.content)
                   .fontSize(14)
                   .lineHeight(22)
-                  .fontColor('#43524E')
+                  .fontColor(AppTheme.TEXT_PRIMARY)
                 Row() {
                   Text(item.location)
                     .fontSize(11)
-                    .fontColor('#95A19F')
+                    .fontColor(AppTheme.TEXT_HINT)
                   Blank()
                   Text(`❤ ${item.likeCount}`)
                     .fontSize(11)
-                    .fontColor('#95A19F')
+                    .fontColor(AppTheme.TEXT_HINT)
                 }
                 .width('100%')
               }
               .width('100%')
               .padding(14)
-              .backgroundColor('#F9FBFA')
+              .backgroundColor(AppTheme.CARD)
               .borderRadius(16)
             }
             .margin({ bottom: 10 })
@@ -119,7 +120,7 @@ export struct MapTab {
     }
     .width('100%')
     .padding({ left: 20, right: 20, bottom: 20 })
-    .backgroundColor(Color.White)
+    .backgroundColor(AppTheme.CARD)
     .borderRadius({ topLeft: 24, topRight: 24 })
   }
 
@@ -131,7 +132,7 @@ export struct MapTab {
             LoadingProgress()
               .width(36)
               .height(36)
-              .color('#31534A')
+              .color(AppTheme.PRIMARY)
           }
           .width('100%')
           .padding(60)
@@ -141,15 +142,15 @@ export struct MapTab {
             Text('今日校园情绪气候')
               .fontSize(16)
               .fontWeight(FontWeight.Bold)
-              .fontColor('#25332F')
+              .fontColor(AppTheme.TEXT_TITLE)
             Text(this.mapSummary)
               .fontSize(12)
               .lineHeight(20)
-              .fontColor('#6E7C79')
+              .fontColor(AppTheme.TEXT_SECONDARY)
           }
           .width('100%')
           .padding(18)
-          .backgroundColor('#F5FBF8')
+          .backgroundColor(AppTheme.CARD_MINE)
           .borderRadius(24)
 
           ForEach(this.zones, (zone: ZoneCard) => {
@@ -159,7 +160,7 @@ export struct MapTab {
                   Text(zone.title)
                     .fontSize(16)
                     .fontWeight(FontWeight.Bold)
-                    .fontColor('#25332F')
+                    .fontColor(AppTheme.TEXT_TITLE)
                   Text(`${zone.subtitle} · ${zone.postCount ?? 0} 条心情`)
                     .fontSize(12)
                     .fontColor(zone.accent)
@@ -168,7 +169,7 @@ export struct MapTab {
 
                 Text('查看')
                   .fontSize(12)
-                  .fontColor('#31534A')
+                  .fontColor(AppTheme.PRIMARY)
                   .onClick(() => {
                     this.openZonePosts(zone)
                   })
@@ -179,14 +180,14 @@ export struct MapTab {
               Text(zone.summary)
                 .fontSize(13)
                 .lineHeight(21)
-                .fontColor('#5F706C')
+                .fontColor(AppTheme.TEXT_HINT)
 
               Text('去写一张纸条 +')
                 .fontSize(12)
                 .fontWeight(FontWeight.Bold)
                 .fontColor(Color.White)
                 .padding({ left: 14, right: 14, top: 9, bottom: 9 })
-                .backgroundColor('#31534A')
+                .backgroundColor(AppTheme.PRIMARY)
                 .borderRadius(18)
                 .onClick(() => {
                   this.onNavigateToPost()
@@ -194,7 +195,7 @@ export struct MapTab {
             }
             .width('100%')
             .padding(18)
-            .backgroundColor(Color.White)
+            .backgroundColor(AppTheme.CARD)
             .borderRadius(24)
           }, (zone: ZoneCard) => zone.key)
         }
@@ -205,7 +206,7 @@ export struct MapTab {
           .width('100%')
           .height('100%')
           .position({ x: 0, y: 0 })
-          .backgroundColor('rgba(26, 39, 36, 0.4)')
+          .backgroundColor(AppTheme.OVERLAY)
           .onClick(() => {
             this.showZoneSheet = false
           })

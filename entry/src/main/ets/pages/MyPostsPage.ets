@@ -1,7 +1,14 @@
+import { AppTheme } from '../common/AppTheme'
 import { AuthTheme } from '../common/AuthTheme'
 import { AuthSession } from '../common/AuthSession'
+import { NoteHelper } from '../common/NoteHelper'
+import { PostActionHelper } from '../common/PostActionHelper'
 import { UiHelper } from '../common/UiHelper'
+import { PageHeader } from '../components/PageHeader'
+import { PostCard } from '../components/PostCard'
+import { NoteItem } from '../model/MoodWallTypes'
 import { PostSummary } from '../model/ProfileApiTypes'
+import { PostApi } from '../service/PostApi'
 import { ProfileApi } from '../service/ProfileApi'
 
 @Entry
@@ -12,6 +19,8 @@ struct MyPostsPage {
   @State loadingMore: boolean = false
   @State page: number = 1
   @State hasMore: boolean = false
+  @State refreshKey: number = 0
+  @StorageLink('themeMode') themeMode: string = 'light'
 
   aboutToAppear(): void {
     if (!AuthSession.isLoggedIn()) {
@@ -52,66 +61,131 @@ struct MyPostsPage {
     })
   }
 
-  @Builder
-  buildPostCard(item: PostSummary) {
-    Column({ space: 12 }) {
-      Row() {
-        Text(item.moodLabel)
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(item.color)
-          .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-          .backgroundColor('#FFFFFF')
-          .borderRadius(16)
-        Text(item.timeText)
-          .fontSize(11)
-          .fontColor('#95A19F')
-      }
-      .justifyContent(FlexAlign.SpaceBetween)
-      .width('100%')
+  private toNoteItem(item: PostSummary): NoteItem {
+    return NoteHelper.fromPostSummary(item, true)
+  }
 
-      Text(item.text)
-        .fontSize(15)
-        .lineHeight(23)
-        .fontColor('#25332F')
-
-      Row() {
-        Text(`位置：${item.location}`)
-          .fontSize(12)
-          .fontColor('#7C8A87')
-        Text(`赞 ${item.likes}`)
-          .fontSize(12)
-          .fontColor('#7C8A87')
+  private removePost(postId: number): void {
+    const next: Array<PostSummary> = []
+    this.posts.forEach((item: PostSummary) => {
+      if (item.id !== postId) {
+        next.push(item)
       }
-      .width('100%')
-      .justifyContent(FlexAlign.SpaceBetween)
+    })
+    this.posts = next
+    this.refreshKey++
+  }
+
+  private handleDelete(noteId: number): void {
+    const token: string = AuthSession.getToken()
+    if (token.length === 0) {
+      UiHelper.showToast('请先登录')
+      return
     }
-    .width('100%')
-    .padding(16)
-    .backgroundColor(Color.White)
-    .borderRadius(20)
+
+    UiHelper.showConfirmDialog('删除帖子', '删除后无法恢复，确定吗？', () => {
+      PostApi.deletePost(noteId, token)
+        .then(() => {
+          this.removePost(noteId)
+          UiHelper.markFeedNeedsRefresh()
+          UiHelper.showToast('已删除')
+        })
+        .catch((err: Error) => {
+          UiHelper.showToast(err.message || '删除失败，请稍后重试')
+        })
+    })
+  }
+
+  private patchPostVisibility(postId: number, visibility: string): void {
+    const next: Array<PostSummary> = []
+    this.posts.forEach((item: PostSummary) => {
+      if (item.id === postId) {
+        const updated: PostSummary = {
+          id: item.id,
+          userId: item.userId,
+          nickname: item.nickname,
+          mood: item.mood,
+          moodLabel: item.moodLabel,
+          text: item.text,
+          location: item.location,
+          zoneKey: item.zoneKey,
+          likes: item.likes,
+          liked: item.liked,
+          color: item.color,
+          createdAt: item.createdAt,
+          timeText: item.timeText,
+          avatarKey: item.avatarKey,
+          isMine: item.isMine,
+          commentCount: item.commentCount,
+          visibility: visibility,
+          canDelete: item.canDelete
+        }
+        next.push(updated)
+      } else {
+        next.push(item)
+      }
+    })
+    this.posts = next
+    this.refreshKey++
+  }
+
+  private handleVisibility(note: NoteItem, visibility: string): void {
+    const token: string = AuthSession.getToken()
+    if (token.length === 0) {
+      UiHelper.showToast('请先登录')
+      return
+    }
+    PostApi.updateVisibility(note.id, visibility, token)
+      .then((updated) => {
+        const vis: string = updated.visibility !== undefined ? updated.visibility : visibility
+        this.patchPostVisibility(note.id, vis)
+        UiHelper.markFeedNeedsRefresh()
+        UiHelper.showToast(visibility === 'private' ? '已设为仅自己可见' : '已恢复公开')
+      })
+      .catch((err: Error) => {
+        UiHelper.showToast(err.message || '操作失败，请稍后重试')
+      })
+  }
+
+  private showPostActions(note: NoteItem): void {
+    PostActionHelper.showMenu(
+      note,
+      () => {
+        this.handleDelete(note.id)
+      },
+      (visibility: string) => {
+        this.handleVisibility(note, visibility)
+      }
+    )
+  }
+
+  pageTransition() {
+    PageTransitionEnter({ duration: AppTheme.PAGE_PUSH_MS, curve: Curve.FastOutSlowIn })
+      .slide(SlideEffect.Right)
+      .opacity(0)
+      .scale({ x: 0.92, y: 0.92 })
+    PageTransitionExit({ duration: AppTheme.PAGE_PUSH_MS - 80, curve: Curve.EaseIn })
+      .slide(SlideEffect.Left)
+      .opacity(0.5)
+      .scale({ x: 0.96, y: 0.96 })
+    PageTransitionEnter({ type: RouteType.Pop, duration: AppTheme.PAGE_POP_MS, curve: Curve.FastOutSlowIn })
+      .slide(SlideEffect.Left)
+      .opacity(0)
+      .scale({ x: 0.92, y: 0.92 })
+    PageTransitionExit({ type: RouteType.Pop, duration: AppTheme.PAGE_POP_MS - 60, curve: Curve.EaseIn })
+      .slide(SlideEffect.Right)
+      .opacity(0)
+      .scale({ x: 0.94, y: 0.94 })
   }
 
   build() {
     Column() {
-      Row() {
-        Text('<')
-          .fontSize(18)
-          .fontColor('#31534A')
-          .padding(12)
-          .onClick(() => UiHelper.goBack())
-        Text('我的帖子')
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#25332F')
-          .layoutWeight(1)
-          .textAlign(TextAlign.Center)
-        Text('')
-          .width(42)
-      }
-      .width('100%')
-      .padding({ left: 4, right: 16, top: 8, bottom: 8 })
-      .backgroundColor('#F9FBFA')
+      PageHeader({
+        title: '我的帖子',
+        onBack: () => {
+          UiHelper.goBack()
+        }
+      })
 
       if (this.loading) {
         Column() {
@@ -144,8 +218,28 @@ struct MyPostsPage {
         Scroll() {
           Column({ space: 12 }) {
             ForEach(this.posts, (item: PostSummary) => {
-              this.buildPostCard(item)
-            }, (item: PostSummary) => `${item.id}`)
+              PostCard({
+                note: this.toNoteItem(item),
+                onLike: () => {
+                  UiHelper.showToast('请在心墙页点赞')
+                },
+                onSupport: () => {
+                  UiHelper.showToast('请在心墙页使用接住心声')
+                },
+                onComment: (note: NoteItem) => {
+                  UiHelper.pushToPostDetail(note.id)
+                },
+                onOpen: (note: NoteItem) => {
+                  UiHelper.pushToPostDetail(note.id)
+                },
+                onMore: (note: NoteItem) => {
+                  this.showPostActions(note)
+                },
+                onLongPress: (note: NoteItem) => {
+                  this.showPostActions(note)
+                }
+              })
+            }, (item: PostSummary) => `${item.id}-${this.refreshKey}`)
 
             if (this.hasMore) {
               Row() {
@@ -175,6 +269,6 @@ struct MyPostsPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F4F7F6')
+    .backgroundColor(AppTheme.BG)
   }
 }

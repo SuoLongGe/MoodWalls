@@ -8,6 +8,7 @@ import com.moodwalls.dto.PublishPostResponseDto;
 import com.moodwalls.dto.MoodStatItemDto;
 import com.moodwalls.dto.MoodStatsDto;
 import com.moodwalls.dto.TodayStatsDto;
+import com.moodwalls.dto.UpdateVisibilityDto;
 import com.moodwalls.entity.Post;
 import com.moodwalls.entity.PostLike;
 import com.moodwalls.entity.User;
@@ -43,13 +44,16 @@ public class PostService {
     private final PostRepository postRepository;
     private final PostLikeRepository postLikeRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
     private final AiService aiService;
 
     public PostService(PostRepository postRepository, PostLikeRepository postLikeRepository,
-                       UserRepository userRepository, AiService aiService) {
+                       UserRepository userRepository, NotificationService notificationService,
+                       AiService aiService) {
         this.postRepository = postRepository;
         this.postLikeRepository = postLikeRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
         this.aiService = aiService;
     }
 
@@ -60,9 +64,9 @@ public class PostService {
 
         Page<Post> postPage;
         if (mood == null || mood.equals("all") || mood.isEmpty()) {
-            postPage = postRepository.findByStatusOrderByCreatedAtDesc(1, pageRequest);
+            postPage = postRepository.findPublicFeed(pageRequest);
         } else {
-            postPage = postRepository.findByStatusAndMoodOrderByCreatedAtDesc(1, mood, pageRequest);
+            postPage = postRepository.findPublicFeedByMood(mood, pageRequest);
         }
 
         List<Post> posts = postPage.getContent();
@@ -77,11 +81,52 @@ public class PostService {
         return response;
     }
 
+    public PostListResponseDto searchPosts(String keyword, int page, int size, String mood, String period,
+                                           Long currentUserId) {
+        String trimmed = keyword == null ? "" : keyword.trim();
+        if (trimmed.isEmpty()) {
+            throw new BusinessException(400, "请输入搜索关键词");
+        }
+        if (trimmed.length() > 32) {
+            throw new BusinessException(400, "关键词不能超过 32 字");
+        }
+
+        size = Math.min(Math.max(size, 1), 50);
+        page = Math.max(page, 1);
+        PageRequest pageRequest = PageRequest.of(page - 1, size);
+
+        String moodFilter = mood == null || mood.isBlank() ? "all" : mood.trim();
+        LocalDateTime since = resolveSearchPeriodStart(period);
+
+        Page<Post> postPage = postRepository.searchPublicPosts(trimmed, moodFilter, since, pageRequest);
+        List<PostSummaryDto> summaries = toSummaries(postPage.getContent(), currentUserId);
+
+        PostListResponseDto response = new PostListResponseDto();
+        response.setList(summaries);
+        response.setTotal(postPage.getTotalElements());
+        response.setPage(page);
+        response.setSize(size);
+        response.setHasMore(postPage.hasNext());
+        return response;
+    }
+
     public PostSummaryDto getPostDetail(Long postId, Long currentUserId) {
         Post post = postRepository.findById(postId)
                 .filter(p -> p.getStatus() == 1)
                 .orElseThrow(() -> new BusinessException(404, "帖子不存在"));
+        if (isPrivate(post) && (currentUserId == null || !currentUserId.equals(post.getUserId()))) {
+            throw new BusinessException(403, "该帖子仅作者可见");
+        }
         return toSummary(post, currentUserId);
+    }
+
+    private boolean isPrivate(Post post) {
+        Integer visibility = post.getVisibility();
+        return visibility != null && visibility == 2;
+    }
+
+    private String visibilityLabel(Post post) {
+        return isPrivate(post) ? "private" : "public";
     }
 
     @Transactional
@@ -103,6 +148,7 @@ public class PostService {
             postLikeRepository.save(like);
             post.setLikeCount(post.getLikeCount() + 1);
             postRepository.save(post);
+            notificationService.notifyPostLiked(post, userId);
             return new LikeResponseDto(post.getLikeCount(), true);
         }
     }
@@ -134,6 +180,8 @@ public class PostService {
             post.setZoneKey(mapLocationToZoneKey(dto.getLocation()));
         }
         post.setLikeCount(0);
+        post.setCommentCount(0);
+        post.setVisibility(1);
         post.setStatus(1);
 
         Post saved = postRepository.save(post);
@@ -164,6 +212,30 @@ public class PostService {
         }
         post.setStatus(0);
         postRepository.save(post);
+    }
+
+    @Transactional
+    public PostSummaryDto updateVisibility(Long postId, Long userId, UpdateVisibilityDto dto) {
+        if (dto == null || dto.getVisibility() == null || dto.getVisibility().isBlank()) {
+            throw new BusinessException(400, "请指定可见性");
+        }
+        Post post = postRepository.findById(postId)
+                .filter(p -> p.getStatus() == 1)
+                .orElseThrow(() -> new BusinessException(404, "帖子不存在"));
+        if (!post.getUserId().equals(userId)) {
+            throw new BusinessException(403, "无权修改他人的帖子");
+        }
+
+        String visibility = dto.getVisibility().trim().toLowerCase();
+        if ("private".equals(visibility)) {
+            post.setVisibility(2);
+        } else if ("public".equals(visibility)) {
+            post.setVisibility(1);
+        } else {
+            throw new BusinessException(400, "可见性仅支持 public 或 private");
+        }
+        postRepository.save(post);
+        return toSummary(post, userId);
     }
 
     private String mapLocationToZoneKey(String location) {
@@ -258,6 +330,13 @@ public class PostService {
         };
     }
 
+    private LocalDateTime resolveSearchPeriodStart(String periodParam) {
+        if (periodParam == null || periodParam.isBlank() || "all".equalsIgnoreCase(periodParam.trim())) {
+            return LocalDateTime.of(2000, 1, 1, 0, 0);
+        }
+        return resolveStatsPeriodStart(normalizeStatsPeriod(periodParam));
+    }
+
     private List<PostSummaryDto> toSummaries(List<Post> posts, Long currentUserId) {
         if (posts.isEmpty()) return List.of();
 
@@ -277,7 +356,7 @@ public class PostService {
                         userRepository.findById(id).orElse(null)));
 
         return posts.stream()
-                .map(p -> toSummary(p, likedIds, userMap))
+                .map(p -> toSummary(p, likedIds, userMap, currentUserId))
                 .collect(Collectors.toList());
     }
 
@@ -292,10 +371,10 @@ public class PostService {
         }
         User user = userRepository.findById(post.getUserId()).orElse(null);
         Map<Long, User> userMap = user == null ? Map.of() : Map.of(post.getUserId(), user);
-        return toSummary(post, likedIds, userMap);
+        return toSummary(post, likedIds, userMap, currentUserId);
     }
 
-    private PostSummaryDto toSummary(Post post, Set<Long> likedIds, Map<Long, User> userMap) {
+    private PostSummaryDto toSummary(Post post, Set<Long> likedIds, Map<Long, User> userMap, Long currentUserId) {
         PostSummaryDto dto = new PostSummaryDto();
         dto.setId(post.getId());
         dto.setUserId(post.getUserId());
@@ -312,6 +391,12 @@ public class PostService {
 
         User user = userMap.get(post.getUserId());
         dto.setNickname(user != null ? user.getNickname() : "匿名用户");
+        dto.setAvatarKey(user != null && user.getAvatarKey() != null ? user.getAvatarKey() : "avatar_01");
+        boolean mine = currentUserId != null && currentUserId.equals(post.getUserId());
+        dto.setMine(mine);
+        dto.setCommentCount(post.getCommentCount() != null ? post.getCommentCount() : 0);
+        dto.setVisibility(visibilityLabel(post));
+        dto.setCanDelete(mine);
 
         return dto;
     }

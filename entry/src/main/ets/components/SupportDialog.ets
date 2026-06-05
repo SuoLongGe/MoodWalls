@@ -1,3 +1,5 @@
+import { AppTheme } from '../common/AppTheme'
+
 @Component
 export struct SupportDialog {
   @Link visible: boolean
@@ -11,18 +13,22 @@ export struct SupportDialog {
         Column()
           .width('100%')
           .height('100%')
-          .backgroundColor('rgba(26, 39, 36, 0.35)')
+          .backgroundColor(AppTheme.OVERLAY)
+          .transition(TransitionEffect.OPACITY.animation({
+            duration: AppTheme.DIALOG_ENTER_MS,
+            curve: Curve.FastOutSlowIn
+          }))
 
         Column({ space: 14 }) {
           Row() {
             Text(this.title)
               .fontSize(18)
               .fontWeight(FontWeight.Bold)
-              .fontColor('#25332F')
+              .fontColor(AppTheme.TEXT_TITLE)
             Text('关闭')
               .fontSize(12)
               .fontWeight(FontWeight.Bold)
-              .fontColor('#7A8784')
+              .fontColor(AppTheme.TEXT_HINT)
               .onClick(() => {
                 this.visible = false
               })
@@ -32,17 +38,17 @@ export struct SupportDialog {
 
           Text('校园倾听树洞')
             .fontSize(13)
-            .fontColor('#73A18F')
+            .fontColor(AppTheme.PRIMARY_LIGHT)
 
           if (this.loading) {
             Column({ space: 10 }) {
               LoadingProgress()
                 .width(32)
                 .height(32)
-                .color('#31534A')
+                .color(AppTheme.PRIMARY)
               Text('正在倾听...')
                 .fontSize(13)
-                .fontColor('#7A8784')
+                .fontColor(AppTheme.TEXT_HINT)
             }
             .width('100%')
             .padding({ top: 20, bottom: 20 })
@@ -61,8 +67,8 @@ export struct SupportDialog {
             .fontWeight(FontWeight.Bold)
             .fontColor(Color.White)
             .padding({ top: 12, bottom: 12 })
-            .backgroundColor('#31534A')
-            .borderRadius(22)
+            .backgroundColor(AppTheme.PRIMARY)
+            .borderRadius(AppTheme.RADIUS_PILL)
             .opacity(this.loading ? 0.45 : 1)
             .onClick(() => {
               if (!this.loading) {
@@ -71,9 +77,20 @@ export struct SupportDialog {
             })
         }
         .width('84%')
-        .padding(20)
-        .backgroundColor('#FFFFFF')
+        .padding(22)
+        .backgroundColor(AppTheme.CARD)
         .borderRadius(28)
+        .shadow({
+          radius: 28,
+          color: AppTheme.SHADOW,
+          offsetY: 8
+        })
+        .transition(
+          TransitionEffect.translate({ y: 48 })
+            .combine(TransitionEffect.scale({ x: 0.82, y: 0.82 }))
+            .combine(TransitionEffect.OPACITY)
+            .animation({ duration: AppTheme.DIALOG_ENTER_MS, curve: Curve.FastOutSlowIn })
+        )
       }
       .width('100%')
       .height('100%')
