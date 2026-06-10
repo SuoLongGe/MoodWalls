@@ -1,3 +1,16 @@
+export interface TopReactionItem {
+  type: string
+  label: string
+  count: number
+}
+
+export interface ReactionResponse {
+  totalReactions: number
+  myReaction?: string | null
+  reactionStats?: Record<string, number>
+  topReactions?: Array<TopReactionItem>
+}
+
 export interface NoteItem {
   id: number
   userId?: number
@@ -18,6 +31,17 @@ export interface NoteItem {
   commentCount?: number
   visibility?: string
   canDelete?: boolean
+  totalReactions?: number
+  myReaction?: string | null
+  topReactions?: Array<TopReactionItem>
+  reactionStats?: Record<string, number>
+  whisperCount?: number
+  cloudCount?: number
+}
+
+export interface CloudGiftResponse {
+  cloudCount: number
+  sent: boolean
 }
 
 export interface PostDetailResponse extends NoteItem {
@@ -58,6 +82,12 @@ export interface NoteItemFromApi {
   commentCount?: number
   visibility?: string
   canDelete?: boolean
+  totalReactions?: number
+  myReaction?: string | null
+  topReactions?: Array<TopReactionItem>
+  reactionStats?: Record<string, number>
+  whisperCount?: number
+  cloudCount?: number
 }
 
 export interface LikeResponseFromApi {
@@ -129,6 +159,41 @@ export interface ZonePostsResponse {
   page: number
   size: number
   hasMore: boolean
+}
+
+export interface MoodBreakdownItem {
+  mood: string
+  label: string
+  percent: number
+  count: number
+}
+
+export interface ZoneStoryResponse {
+  zoneKey: string
+  title: string
+  subtitle: string
+  accent: string
+  postCount: number
+  dominantMood?: string | null
+  dominantMoodLabel?: string | null
+  moodBreakdown: Array<MoodBreakdownItem>
+  story: string
+  encouragement: string
+}
+
+export interface MoodCurvePoint {
+  date: string
+  weekday: string
+  dominantMood?: string | null
+  label?: string | null
+  color?: string | null
+  postCount: number
+}
+
+export interface MoodCurveResponse {
+  days: number
+  points: Array<MoodCurvePoint>
+  summary: string
 }
 
 export interface SupportResponse {
@@ -204,6 +269,7 @@ export interface CommentListResponse {
   page: number
   size: number
   hasMore: boolean
+  whisperCount?: number
 }
 
 export interface CreateCommentBody {
@@ -211,4 +277,30 @@ export interface CreateCommentBody {
   commentType?: string
   parentId?: number | null
   replyToUserId?: number | null
+}
+
+export interface InspirationDrawResponse {
+  alreadyDrawn?: boolean
+  content?: string
+  mood?: string
+  moodLabel?: string
+  moodColor?: string
+  source?: string
+  drawnAt?: string
+  remainingToday?: number
+}
+
+export interface CreateEncouragementNoteBody {
+  content: string
+  mood: string
+}
+
+export interface EncouragementNoteResponse {
+  id: number
+  content: string
+  mood: string
+  moodLabel: string
+  moodColor: string
+  createdAt: string
+  timeText: string
 }

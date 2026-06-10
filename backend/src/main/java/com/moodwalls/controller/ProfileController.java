@@ -2,9 +2,11 @@ package com.moodwalls.controller;
 
 import com.moodwalls.dto.ApiResponse;
 import com.moodwalls.dto.CalendarResponseDto;
+import com.moodwalls.dto.MoodCurveResponseDto;
 import com.moodwalls.dto.PostListResponseDto;
 import com.moodwalls.dto.ProfileOverviewDto;
 import com.moodwalls.security.JwtAuthSupport;
+import com.moodwalls.service.MoodCurveService;
 import com.moodwalls.service.ProfileService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -17,10 +19,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProfileController {
 
     private final ProfileService profileService;
+    private final MoodCurveService moodCurveService;
     private final JwtAuthSupport jwtAuthSupport;
 
-    public ProfileController(ProfileService profileService, JwtAuthSupport jwtAuthSupport) {
+    public ProfileController(ProfileService profileService,
+                             MoodCurveService moodCurveService,
+                             JwtAuthSupport jwtAuthSupport) {
         this.profileService = profileService;
+        this.moodCurveService = moodCurveService;
         this.jwtAuthSupport = jwtAuthSupport;
     }
 
@@ -37,6 +43,14 @@ public class ProfileController {
             @RequestParam(value = "month", required = false) String month) {
         Long userId = jwtAuthSupport.requireUserId(authorization);
         return ApiResponse.ok(profileService.getCalendar(userId, month));
+    }
+
+    @GetMapping("/mood-curve")
+    public ApiResponse<MoodCurveResponseDto> moodCurve(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(value = "days", defaultValue = "7") int days) {
+        Long userId = jwtAuthSupport.requireUserId(authorization);
+        return ApiResponse.ok(moodCurveService.buildCurve(userId, days));
     }
 
     @GetMapping("/posts")

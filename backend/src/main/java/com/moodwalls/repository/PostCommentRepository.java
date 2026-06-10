@@ -15,6 +15,21 @@ public interface PostCommentRepository extends JpaRepository<PostComment, Long> 
     Page<PostComment> findByPostIdAndStatusAndParentIdIsNullOrderByCreatedAtAsc(
             Long postId, Integer status, Pageable pageable);
 
+    @Query("SELECT c FROM PostComment c WHERE c.postId = :postId AND c.status = :status AND c.parentId IS NULL " +
+           "AND (c.commentType = 'resonance' " +
+           "     OR (:viewerId IS NOT NULL AND (c.userId = :viewerId " +
+           "          OR (:viewerId = :postAuthorId AND c.commentType = 'whisper')))) " +
+           "ORDER BY c.createdAt ASC")
+    Page<PostComment> findVisibleTopComments(
+            @Param("postId") Long postId,
+            @Param("status") Integer status,
+            @Param("viewerId") Long viewerId,
+            @Param("postAuthorId") Long postAuthorId,
+            Pageable pageable);
+
+    long countByPostIdAndStatusAndCommentTypeAndParentIdIsNull(
+            Long postId, Integer status, String commentType);
+
     List<PostComment> findByPostIdAndStatusAndParentIdInOrderByCreatedAtAsc(
             Long postId, Integer status, List<Long> parentIds);
 

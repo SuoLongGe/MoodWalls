@@ -4,6 +4,7 @@ import com.moodwalls.dto.CreatePostDto;
 import com.moodwalls.dto.LikeResponseDto;
 import com.moodwalls.dto.PostListResponseDto;
 import com.moodwalls.dto.PostSummaryDto;
+import com.moodwalls.dto.ReactionResponseDto;
 import com.moodwalls.dto.PublishPostResponseDto;
 import com.moodwalls.dto.MoodStatItemDto;
 import com.moodwalls.dto.MoodStatsDto;
@@ -13,6 +14,7 @@ import com.moodwalls.entity.Post;
 import com.moodwalls.entity.PostLike;
 import com.moodwalls.entity.User;
 import com.moodwalls.exception.BusinessException;
+import com.moodwalls.repository.PostCommentRepository;
 import com.moodwalls.repository.PostLikeRepository;
 import com.moodwalls.repository.PostRepository;
 import com.moodwalls.repository.UserRepository;
@@ -43,18 +45,26 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final PostLikeRepository postLikeRepository;
+    private final PostCommentRepository commentRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final AiService aiService;
+    private final ReactionService reactionService;
+    private final CloudGiftService cloudGiftService;
 
     public PostService(PostRepository postRepository, PostLikeRepository postLikeRepository,
+                       PostCommentRepository commentRepository,
                        UserRepository userRepository, NotificationService notificationService,
-                       AiService aiService) {
+                       AiService aiService, ReactionService reactionService,
+                       CloudGiftService cloudGiftService) {
         this.postRepository = postRepository;
         this.postLikeRepository = postLikeRepository;
+        this.commentRepository = commentRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
         this.aiService = aiService;
+        this.reactionService = reactionService;
+        this.cloudGiftService = cloudGiftService;
     }
 
     public PostListResponseDto getPostList(int page, int size, String mood, Long currentUserId) {
@@ -71,6 +81,8 @@ public class PostService {
 
         List<Post> posts = postPage.getContent();
         List<PostSummaryDto> summaries = toSummaries(posts, currentUserId);
+        enrichReactionFields(summaries, currentUserId);
+        enrichCloudCounts(summaries);
 
         PostListResponseDto response = new PostListResponseDto();
         response.setList(summaries);
@@ -100,6 +112,8 @@ public class PostService {
 
         Page<Post> postPage = postRepository.searchPublicPosts(trimmed, moodFilter, since, pageRequest);
         List<PostSummaryDto> summaries = toSummaries(postPage.getContent(), currentUserId);
+        enrichReactionFields(summaries, currentUserId);
+        enrichCloudCounts(summaries);
 
         PostListResponseDto response = new PostListResponseDto();
         response.setList(summaries);
@@ -117,7 +131,15 @@ public class PostService {
         if (isPrivate(post) && (currentUserId == null || !currentUserId.equals(post.getUserId()))) {
             throw new BusinessException(403, "该帖子仅作者可见");
         }
-        return toSummary(post, currentUserId);
+        PostSummaryDto summary = toSummary(post, currentUserId);
+        enrichReactionFields(List.of(summary), currentUserId);
+        summary.setCloudCount(cloudGiftService.countForPost(post.getId()));
+        if (currentUserId != null && currentUserId.equals(post.getUserId())) {
+            long whisperCount = commentRepository.countByPostIdAndStatusAndCommentTypeAndParentIdIsNull(
+                    post.getId(), 1, "whisper");
+            summary.setWhisperCount((int) whisperCount);
+        }
+        return summary;
     }
 
     private boolean isPrivate(Post post) {
@@ -399,5 +421,34 @@ public class PostService {
         dto.setCanDelete(mine);
 
         return dto;
+    }
+
+    private void enrichReactionFields(List<PostSummaryDto> summaries, Long currentUserId) {
+        if (summaries == null || summaries.isEmpty()) {
+            return;
+        }
+        List<Long> postIds = summaries.stream().map(PostSummaryDto::getId).collect(Collectors.toList());
+        Map<Long, ReactionResponseDto> reactionMap = reactionService.buildResponsesForPosts(postIds, currentUserId);
+        for (PostSummaryDto summary : summaries) {
+            ReactionResponseDto reaction = reactionMap.get(summary.getId());
+            if (reaction == null) {
+                continue;
+            }
+            summary.setTotalReactions(reaction.getTotalReactions());
+            summary.setMyReaction(reaction.getMyReaction());
+            summary.setTopReactions(reaction.getTopReactions());
+            summary.setReactionStats(reaction.getReactionStats());
+        }
+    }
+
+    private void enrichCloudCounts(List<PostSummaryDto> summaries) {
+        if (summaries == null || summaries.isEmpty()) {
+            return;
+        }
+        List<Long> postIds = summaries.stream().map(PostSummaryDto::getId).collect(Collectors.toList());
+        Map<Long, Integer> cloudMap = cloudGiftService.countByPostIds(postIds);
+        for (PostSummaryDto summary : summaries) {
+            summary.setCloudCount(cloudMap.getOrDefault(summary.getId(), 0));
+        }
     }
 }

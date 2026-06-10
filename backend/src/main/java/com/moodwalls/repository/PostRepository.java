@@ -45,6 +45,21 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p.zoneKey, p.mood, COUNT(p) FROM Post p WHERE p.status = 1 AND p.visibility = 1 AND p.zoneKey IS NOT NULL AND p.createdAt >= :since GROUP BY p.zoneKey, p.mood")
     List<Object[]> countByZoneAndMoodSince(@Param("since") LocalDateTime since);
 
+    @Query("SELECT COUNT(p) FROM Post p WHERE p.status = 1 AND p.visibility = 1 AND p.zoneKey = :zoneKey AND p.createdAt >= :since")
+    long countByZoneKeySince(@Param("zoneKey") String zoneKey, @Param("since") LocalDateTime since);
+
+    @Query("SELECT p.mood, COUNT(p) FROM Post p WHERE p.status = 1 AND p.visibility = 1 AND p.zoneKey = :zoneKey AND p.createdAt >= :since GROUP BY p.mood")
+    List<Object[]> countMoodByZoneSince(@Param("zoneKey") String zoneKey, @Param("since") LocalDateTime since);
+
+    @Query(value = """
+            SELECT DATE(created_at) AS d, mood, COUNT(*) AS cnt
+            FROM posts
+            WHERE user_id = :userId AND status = 1 AND created_at >= :since
+            GROUP BY d, mood
+            ORDER BY d ASC
+            """, nativeQuery = true)
+    List<Object[]> countUserMoodByDateSince(@Param("userId") Long userId, @Param("since") LocalDateTime since);
+
     @Query("SELECT p FROM Post p WHERE p.userId = :userId AND p.status = 1 AND p.createdAt >= :since ORDER BY p.createdAt DESC")
     List<Post> findUserPostsSince(@Param("userId") Long userId, @Param("since") LocalDateTime since);
 
@@ -82,4 +97,5 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query(value = "SELECT lzm.zone_key FROM location_zone_mappings lzm WHERE lzm.location_name = :location LIMIT 1", nativeQuery = true)
     List<Object[]> findLocationToZoneMappings(@Param("location") String location);
+
 }

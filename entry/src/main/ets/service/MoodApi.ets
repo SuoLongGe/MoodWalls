@@ -1,9 +1,11 @@
 import { HttpClient } from './HttpClient'
 import {
   MapZonesResponse,
+  MoodBreakdownItem,
   SupportResponse,
   WeeklyReportResponse,
   ZonePostsResponse,
+  ZoneStoryResponse,
   UnreadCountResponse,
   NotificationListResponse,
   NotificationItem
@@ -22,6 +24,26 @@ export interface NotificationItemFromApi {
 
 export interface ReadAllNotificationsResponse {
   updated: number
+}
+
+interface MoodBreakdownItemJson {
+  mood?: string
+  label?: string
+  percent?: number | string
+  count?: number | string
+}
+
+interface ZoneStoryResponseJson {
+  zoneKey?: string
+  title?: string
+  subtitle?: string
+  accent?: string
+  postCount?: number | string
+  dominantMood?: string | null
+  dominantMoodLabel?: string | null
+  moodBreakdown?: Array<MoodBreakdownItemJson>
+  story?: string
+  encouragement?: string
 }
 
 export class MoodApi {
@@ -50,6 +72,52 @@ export class MoodApi {
 
   static getZonePosts(zoneKey: string, page: number = 1, size: number = 10): Promise<ZonePostsResponse> {
     return HttpClient.get<ZonePostsResponse>(`/map/zones/${zoneKey}/posts?page=${page}&size=${size}`)
+  }
+
+  static getZoneStory(zoneKey: string): Promise<ZoneStoryResponse> {
+    const key: string = encodeURIComponent(zoneKey)
+    return HttpClient.get<ZoneStoryResponseJson>(`/map/zones/${key}/story`)
+      .then((res: ZoneStoryResponseJson) => MoodApi.normalizeZoneStory(res))
+  }
+
+  private static normalizeZoneStory(res: ZoneStoryResponseJson): ZoneStoryResponse {
+    const breakdown: Array<MoodBreakdownItem> = []
+    const rawBreakdown: Array<MoodBreakdownItemJson> =
+      res.moodBreakdown !== undefined && res.moodBreakdown !== null ? res.moodBreakdown : []
+    rawBreakdown.forEach((row: MoodBreakdownItemJson) => {
+      if (row.mood !== undefined && row.mood.length > 0) {
+        breakdown.push({
+          mood: row.mood,
+          label: row.label !== undefined && row.label !== null ? row.label : row.mood,
+          percent: MoodApi.toStatInt(row.percent),
+          count: MoodApi.toStatInt(row.count)
+        })
+      }
+    })
+    const result: ZoneStoryResponse = {
+      zoneKey: res.zoneKey !== undefined && res.zoneKey !== null ? res.zoneKey : '',
+      title: res.title !== undefined && res.title !== null ? res.title : '',
+      subtitle: res.subtitle !== undefined && res.subtitle !== null ? res.subtitle : '',
+      accent: res.accent !== undefined && res.accent !== null ? res.accent : '#73C088',
+      postCount: MoodApi.toStatInt(res.postCount),
+      dominantMood: res.dominantMood,
+      dominantMoodLabel: res.dominantMoodLabel,
+      moodBreakdown: breakdown,
+      story: res.story !== undefined && res.story !== null ? res.story : '',
+      encouragement: res.encouragement !== undefined && res.encouragement !== null ? res.encouragement : ''
+    }
+    return result
+  }
+
+  private static toStatInt(value: number | string | undefined | null): number {
+    if (value === undefined || value === null) {
+      return 0
+    }
+    if (typeof value === 'number') {
+      return Math.floor(value)
+    }
+    const parsed: number = parseInt(`${value}`, 10)
+    return Number.isNaN(parsed) ? 0 : parsed
   }
 
   static supportPost(postId: number, token: string): Promise<SupportResponse> {

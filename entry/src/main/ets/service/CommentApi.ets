@@ -45,6 +45,7 @@ interface CommentListJson {
   page?: number | string
   size?: number | string
   hasMore?: boolean
+  whisperCount?: number | string
 }
 
 export class CommentApi {
@@ -83,7 +84,8 @@ export class CommentApi {
       total: CommentApi.toInt(json.total),
       page: CommentApi.toInt(json.page) > 0 ? CommentApi.toInt(json.page) : fallbackPage,
       size: CommentApi.toInt(json.size) > 0 ? CommentApi.toInt(json.size) : fallbackSize,
-      hasMore: json.hasMore === true
+      hasMore: json.hasMore === true,
+      whisperCount: CommentApi.toInt(json.whisperCount)
     }
   }
 

@@ -229,3 +229,53 @@ VALUES
   ('麓南校区八食堂', 'living')
 ON DUPLICATE KEY UPDATE
   zone_key = VALUES(zone_key);
+
+-- ============================================================
+-- 帖子送云记录（D06）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS post_cloud_gifts (
+  id         BIGINT      NOT NULL AUTO_INCREMENT,
+  user_id    BIGINT      NOT NULL COMMENT '送云用户ID',
+  post_id    BIGINT      NOT NULL COMMENT '目标帖子ID',
+  created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (id),
+  KEY idx_post_cloud_gifts_post_id (post_id),
+  KEY idx_post_cloud_gifts_user_post_created (user_id, post_id, created_at),
+  CONSTRAINT fk_post_cloud_gifts_user FOREIGN KEY (user_id) REFERENCES users (id),
+  CONSTRAINT fk_post_cloud_gifts_post FOREIGN KEY (post_id) REFERENCES posts (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='帖子送云记录';
+
+-- ============================================================
+-- 鼓励小纸条池（H05 · 与帖子独立）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS encouragement_notes (
+  id         BIGINT       NOT NULL AUTO_INCREMENT,
+  user_id    BIGINT       NOT NULL COMMENT '作者用户ID（抽取时不展示）',
+  content    VARCHAR(200) NOT NULL COMMENT '鼓励内容，8~120字',
+  mood       VARCHAR(32)  NOT NULL DEFAULT 'calm' COMMENT '情绪语气：happy/calm/moved',
+  status     TINYINT      NOT NULL DEFAULT 1 COMMENT '1正常 0删除',
+  created_at DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  updated_at DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (id),
+  KEY idx_encouragement_notes_user_id (user_id),
+  KEY idx_encouragement_notes_status_created (status, created_at),
+  CONSTRAINT fk_encouragement_notes_user FOREIGN KEY (user_id) REFERENCES users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='鼓励小纸条';
+
+-- ============================================================
+-- 每日陌生人小纸条抽取记录（H05）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS inspiration_draws (
+  id         BIGINT       NOT NULL AUTO_INCREMENT,
+  user_id    BIGINT       NOT NULL COMMENT '抽取用户ID',
+  note_id    BIGINT       DEFAULT NULL COMMENT '来源小纸条ID，种子句为空',
+  content    VARCHAR(200) NOT NULL COMMENT '展示摘句快照',
+  mood       VARCHAR(16)  DEFAULT NULL COMMENT '情绪key',
+  draw_date  DATE         NOT NULL COMMENT '抽取日期（上海时区）',
+  created_at DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_inspiration_user_date (user_id, draw_date),
+  KEY idx_inspiration_user_note (user_id, note_id),
+  CONSTRAINT fk_inspiration_user FOREIGN KEY (user_id) REFERENCES users (id),
+  CONSTRAINT fk_inspiration_note FOREIGN KEY (note_id) REFERENCES encouragement_notes (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='每日小纸条抽取记录';

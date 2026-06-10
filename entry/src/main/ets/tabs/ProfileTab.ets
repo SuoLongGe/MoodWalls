@@ -9,10 +9,14 @@ import { NotificationStore } from '../common/NotificationStore'
 import { ProfileStore } from '../common/ProfileStore'
 import { AuthApi } from '../service/AuthApi'
 import { ProfileApi } from '../service/ProfileApi'
-import { MoodStatItem } from '../model/MoodWallTypes'
+import { InspirationDrawResponse, MoodCurvePoint, MoodStatItem } from '../model/MoodWallTypes'
+import { InspirationApi } from '../service/InspirationApi'
 import { PostApi } from '../service/PostApi'
+import { InspirationCard } from '../components/InspirationCard'
+import { MoodCurveChart } from '../components/MoodCurveChart'
 
 type StatsPeriod = 'today' | 'week' | 'month'
+type MoodViewTab = 'curve' | 'distribution'
 
 @Component
 export struct ProfileTab {
@@ -45,24 +49,126 @@ export struct ProfileTab {
   @State calendarCells: Array<CalendarCell> = []
   @State calendarTitle: string = ''
 
+  @State moodViewTab: MoodViewTab = 'curve'
   @State moodPeriod: StatsPeriod = 'week'
   @State moodStats: Array<MoodStatItem> = []
   @State moodStatsLoading: boolean = false
+  @State moodCurveLoading: boolean = false
+  @State moodCurvePoints: Array<MoodCurvePoint> = []
+  @State moodCurveSummary: string = ''
+  @State curveRefreshKey: number = 0
+
+  @State inspirationLoading: boolean = false
+  @State inspirationContent: string = ''
+  @State inspirationMoodLabel: string = ''
+  @State inspirationMoodColor: string = ''
+  @State inspirationAlreadyDrawn: boolean = false
 
   aboutToAppear(): void {
     ProfileStore.ensureInitialized()
     this.calendarMonth = ProfileTab.formatMonthKey(new Date())
     this.refreshProfile()
     this.loadArchive()
+    this.fetchMoodCurve()
     this.fetchMoodStats()
+    this.loadInspirationToday()
   }
 
   onProfileRefreshTick(): void {
     if (this.profileRefreshTick > 0) {
       this.loadOverview()
       this.reloadCalendar()
+      this.fetchMoodCurve()
       this.fetchMoodStats()
     }
+  }
+
+  private fetchMoodCurve(): void {
+    if (!AuthSession.isLoggedIn()) {
+      return
+    }
+    this.moodCurveLoading = true
+    ProfileApi.getMoodCurve(7)
+      .then((res) => {
+        this.moodCurvePoints = res.points
+        this.moodCurveSummary = res.summary
+        this.curveRefreshKey++
+      })
+      .catch((err: Error) => {
+        console.error(`fetchMoodCurve: ${err.message}`)
+        this.moodCurvePoints = []
+        this.moodCurveSummary = ''
+      })
+      .finally(() => {
+        this.moodCurveLoading = false
+      })
+  }
+
+  private hasCurveData(): boolean {
+    for (let i: number = 0; i < this.moodCurvePoints.length; i++) {
+      if (this.moodCurvePoints[i].postCount > 0) {
+        return true
+      }
+    }
+    return false
+  }
+
+  private selectMoodViewTab(tab: MoodViewTab): void {
+    if (this.moodViewTab === tab) {
+      return
+    }
+    this.moodViewTab = tab
+    if (tab === 'distribution' && this.moodStats.length === 0 && !this.moodStatsLoading) {
+      this.fetchMoodStats()
+    }
+  }
+
+  private applyInspiration(res: InspirationDrawResponse): void {
+    this.inspirationContent = res.content !== undefined ? res.content : ''
+    this.inspirationMoodLabel = res.moodLabel !== undefined ? res.moodLabel : ''
+    this.inspirationMoodColor = res.moodColor !== undefined ? res.moodColor : ''
+    this.inspirationAlreadyDrawn = res.alreadyDrawn === true || this.inspirationContent.length > 0
+  }
+
+  private loadInspirationToday(): void {
+    const token: string = AuthSession.getToken()
+    if (token.length === 0) {
+      return
+    }
+    this.inspirationLoading = true
+    InspirationApi.getToday(token)
+      .then((res: InspirationDrawResponse) => {
+        this.applyInspiration(res)
+      })
+      .catch((err: Error) => {
+        console.error(`loadInspirationToday: ${err.message}`)
+      })
+      .finally(() => {
+        this.inspirationLoading = false
+      })
+  }
+
+  private drawInspiration(): void {
+    const token: string = AuthSession.getToken()
+    if (token.length === 0) {
+      UiHelper.showToast('请先登录')
+      return
+    }
+    if (this.inspirationAlreadyDrawn) {
+      return
+    }
+    this.inspirationLoading = true
+    InspirationApi.draw(token)
+      .then((res: InspirationDrawResponse) => {
+        this.applyInspiration(res)
+        UiHelper.showToast('收好这张小纸条吧')
+      })
+      .catch((err: Error) => {
+        UiHelper.showToast(err.message || '抽取失败')
+      })
+      .finally(() => {
+        this.inspirationLoading = false
+      })
   }
 
   private fetchMoodStats(): void {
@@ -89,6 +195,20 @@ export struct ProfileTab {
     if (period === 'today') return '本日'
     if (period === 'month') return '本月'
     return '本周'
+  }
+
+  @Builder
+  buildMoodViewChip(tab: MoodViewTab, label: string) {
+    Text(label)
+      .fontSize(12)
+      .fontWeight(this.moodViewTab === tab ? FontWeight.Bold : FontWeight.Medium)
+      .fontColor(this.moodViewTab === tab ? AppTheme.PRIMARY : AppTheme.TEXT_SECONDARY)
+      .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+      .backgroundColor(this.moodViewTab === tab ? AppTheme.PRIMARY_SOFT : AppTheme.SURFACE)
+      .borderRadius(14)
+      .onClick(() => {
+        this.selectMoodViewTab(tab)
+      })
   }
 
   @Builder
@@ -606,6 +726,17 @@ export struct ProfileTab {
         .backgroundColor(AppTheme.CARD)
         .borderRadius(24)
 
+        InspirationCard({
+          loading: this.inspirationLoading,
+          content: this.inspirationContent,
+          moodLabel: this.inspirationMoodLabel,
+          moodColor: this.inspirationMoodColor,
+          alreadyDrawn: this.inspirationAlreadyDrawn,
+          onDraw: () => {
+            this.drawInspiration()
+          }
+        })
+
         Column({ space: 0 }) {
           this.buildSettingRow('编辑个人信息', () => this.openEditProfile())
           Divider().color('#F0F4F8')
@@ -677,29 +808,66 @@ export struct ProfileTab {
               .fontColor('#25332F')
             Blank()
             Row({ space: 8 }) {
-              this.buildPeriodChip('today')
-              this.buildPeriodChip('week')
-              this.buildPeriodChip('month')
+              this.buildMoodViewChip('curve', '曲线')
+              this.buildMoodViewChip('distribution', '分布')
             }
           }
           .width('100%')
 
-          if (this.moodStatsLoading) {
-            LoadingProgress()
-              .width(28)
-              .height(28)
-              .color(AuthTheme.PRIMARY)
-          } else if (this.moodStats.length === 0) {
-            Text('该时段暂无心情记录')
-              .fontSize(12)
-              .fontColor('#95A19F')
+          if (this.moodViewTab === 'curve') {
+            if (this.moodCurveLoading) {
+              LoadingProgress()
+                .width(28)
+                .height(28)
+                .color(AuthTheme.PRIMARY)
+            } else if (!this.hasCurveData()) {
+              Column({ space: 8 }) {
+                Text('🌱')
+                  .fontSize(28)
+                  .width('100%')
+                  .textAlign(TextAlign.Center)
+                Text('还没有足够的心情记录，去贴第一张吧')
+                  .fontSize(12)
+                  .fontColor('#95A19F')
+                  .width('100%')
+                  .textAlign(TextAlign.Center)
+                  .lineHeight(18)
+              }
               .width('100%')
-              .textAlign(TextAlign.Center)
-              .padding({ top: 8, bottom: 8 })
+              .padding({ top: 12, bottom: 12 })
+            } else {
+              MoodCurveChart({
+                points: this.moodCurvePoints,
+                summary: this.moodCurveSummary,
+                refreshKey: this.curveRefreshKey
+              })
+            }
           } else {
-            ForEach(this.moodStats, (item: MoodStatItem) => {
-              this.buildProgressRow(item.label, item.percent, item.color)
-            }, (item: MoodStatItem) => `${this.moodPeriod}-${item.mood}`)
+            Row({ space: 8 }) {
+              this.buildPeriodChip('today')
+              this.buildPeriodChip('week')
+              this.buildPeriodChip('month')
+            }
+            .width('100%')
+            .justifyContent(FlexAlign.End)
+
+            if (this.moodStatsLoading) {
+              LoadingProgress()
+                .width(28)
+                .height(28)
+                .color(AuthTheme.PRIMARY)
+            } else if (this.moodStats.length === 0) {
+              Text('该时段暂无心情记录')
+                .fontSize(12)
+                .fontColor('#95A19F')
+                .width('100%')
+                .textAlign(TextAlign.Center)
+                .padding({ top: 8, bottom: 8 })
+            } else {
+              ForEach(this.moodStats, (item: MoodStatItem) => {
+                this.buildProgressRow(item.label, item.percent, item.color)
+              }, (item: MoodStatItem) => `${this.moodPeriod}-${item.mood}`)
+            }
           }
           Text('翻开温情周报')
             .fontSize(13)

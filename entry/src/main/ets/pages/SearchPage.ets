@@ -7,7 +7,7 @@ import { SearchHistoryStore } from '../common/SearchHistoryStore'
 import { UiHelper } from '../common/UiHelper'
 import { PageHeader } from '../components/PageHeader'
 import { PostCard } from '../components/PostCard'
-import { NoteItem } from '../model/MoodWallTypes'
+import { NoteItem, ReactionResponse } from '../model/MoodWallTypes'
 import { MoodApi } from '../service/MoodApi'
 import { PostApi } from '../service/PostApi'
 
@@ -114,10 +114,23 @@ struct SearchPage {
     this.refreshKey++
   }
 
-  private handleLike(noteId: number): void {
+  private applyReactionUpdate(noteId: number, reaction: ReactionResponse): void {
+    const next: NoteItem[] = []
+    this.results.forEach((item: NoteItem) => {
+      if (item.id === noteId) {
+        next.push(NoteHelper.applyReaction(item, reaction))
+      } else {
+        next.push(item)
+      }
+    })
+    this.results = next
+    this.refreshKey++
+  }
+
+  private handleReact(noteId: number, reactionType: string): void {
     const token: string = AuthSession.getToken()
     if (token.length === 0) {
-      UiHelper.showToast('请先登录后再点赞')
+      UiHelper.showToast('请先登录后再表达心意')
       return
     }
     const idx: number = this.results.findIndex((n: NoteItem) => n.id === noteId)
@@ -125,16 +138,20 @@ struct SearchPage {
       return
     }
     const note: NoteItem = this.results[idx]
-    const nextLiked: boolean = !(note.liked === true)
-    const nextLikes: number = nextLiked ? note.likes + 1 : Math.max(0, note.likes - 1)
-    this.applyNoteUpdate(noteId, nextLikes, nextLiked)
+    PostApi.reactPost(noteId, reactionType, token)
+      .then((res: ReactionResponse) => this.applyReactionUpdate(noteId, res))
+      .catch((err: Error) => UiHelper.showToast(err.message || '操作失败'))
+  }
 
-    PostApi.likePost(noteId, token)
-      .then((res) => this.applyNoteUpdate(noteId, res.likes, res.liked))
-      .catch((err: Error) => {
-        this.applyNoteUpdate(noteId, note.likes, note.liked === true)
-        UiHelper.showToast(err.message || '点赞失败')
-      })
+  private handleCancelReact(noteId: number): void {
+    const token: string = AuthSession.getToken()
+    if (token.length === 0) {
+      UiHelper.showToast('请先登录')
+      return
+    }
+    PostApi.cancelReact(noteId, token)
+      .then((res: ReactionResponse) => this.applyReactionUpdate(noteId, res))
+      .catch((err: Error) => UiHelper.showToast(err.message || '操作失败'))
   }
 
   private handleDelete(noteId: number): void {
@@ -376,7 +393,8 @@ struct SearchPage {
             ForEach(this.results, (item: NoteItem) => {
               PostCard({
                 note: item,
-                onLike: (noteId: number) => this.handleLike(noteId),
+                onReact: (noteId: number, reactionType: string) => this.handleReact(noteId, reactionType),
+                onCancelReact: (noteId: number) => this.handleCancelReact(noteId),
                 onSupport: (note: NoteItem) => this.handleSupport(note),
                 onComment: (note: NoteItem) => UiHelper.pushToPostDetail(note.id, true),
                 onMore: (note: NoteItem) => this.showPostActions(note),

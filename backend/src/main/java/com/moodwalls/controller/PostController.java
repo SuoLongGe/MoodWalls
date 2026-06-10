@@ -10,11 +10,16 @@ import com.moodwalls.dto.PostListResponseDto;
 import com.moodwalls.dto.PostSummaryDto;
 import com.moodwalls.dto.PublishPostResponseDto;
 import com.moodwalls.dto.MoodStatsDto;
+import com.moodwalls.dto.CloudGiftResponseDto;
+import com.moodwalls.dto.ReactRequestDto;
+import com.moodwalls.dto.ReactionResponseDto;
 import com.moodwalls.dto.TodayStatsDto;
 import com.moodwalls.dto.UpdateVisibilityDto;
 import com.moodwalls.security.TokenUtil;
+import com.moodwalls.service.CloudGiftService;
 import com.moodwalls.service.CommentService;
 import com.moodwalls.service.PostService;
+import com.moodwalls.service.ReactionService;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,12 +37,27 @@ public class PostController {
 
     private final PostService postService;
     private final CommentService commentService;
+    private final ReactionService reactionService;
+    private final CloudGiftService cloudGiftService;
     private final TokenUtil tokenUtil;
 
-    public PostController(PostService postService, CommentService commentService, TokenUtil tokenUtil) {
+    public PostController(PostService postService, CommentService commentService,
+                          ReactionService reactionService, CloudGiftService cloudGiftService,
+                          TokenUtil tokenUtil) {
         this.postService = postService;
         this.commentService = commentService;
+        this.reactionService = reactionService;
+        this.cloudGiftService = cloudGiftService;
         this.tokenUtil = tokenUtil;
+    }
+
+    @PostMapping("/posts/{id}/cloud")
+    public ApiResponse<CloudGiftResponseDto> sendCloud(
+            @PathVariable("id") Long id,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        Long userId = tokenUtil.extractUserId(authorization);
+        CloudGiftResponseDto result = cloudGiftService.sendCloud(id, userId);
+        return ApiResponse.ok(result);
     }
 
     @GetMapping("/posts")
@@ -70,6 +90,26 @@ public class PostController {
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         Long userId = tokenUtil.extractUserIdOrNull(authorization);
         PostSummaryDto result = postService.getPostDetail(id, userId);
+        return ApiResponse.ok(result);
+    }
+
+    @PostMapping("/posts/{id}/react")
+    public ApiResponse<ReactionResponseDto> reactPost(
+            @PathVariable("id") Long id,
+            @RequestBody ReactRequestDto dto,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        Long userId = tokenUtil.extractUserId(authorization);
+        ReactionResponseDto result = reactionService.react(id, userId,
+                dto != null ? dto.getReactionType() : null);
+        return ApiResponse.ok(result);
+    }
+
+    @DeleteMapping("/posts/{id}/react")
+    public ApiResponse<ReactionResponseDto> cancelReact(
+            @PathVariable("id") Long id,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        Long userId = tokenUtil.extractUserId(authorization);
+        ReactionResponseDto result = reactionService.cancelReact(id, userId);
         return ApiResponse.ok(result);
     }
 

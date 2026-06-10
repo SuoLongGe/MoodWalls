@@ -11,7 +11,8 @@ import {
   CommentItem,
   CommentReplyItem,
   CreateCommentBody,
-  NoteItem
+  NoteItem,
+  ReactionResponse
 } from '../model/MoodWallTypes'
 import { CommentApi } from '../service/CommentApi'
 import { MoodApi } from '../service/MoodApi'
@@ -34,6 +35,8 @@ struct PostDetailPage {
   @State draftText: string = ''
   @State replyTarget: ReplyTarget | null = null
   @State commentTotal: number = 0
+  @State whisperCount: number = 0
+  @State commentMode: string = 'resonance'
   @State listRefreshKey: number = 0
   @State pendingCommentScroll: boolean = false
   @StorageLink('themeMode') themeMode: string = 'light'
@@ -74,6 +77,7 @@ struct PostDetailPage {
       .then((res) => {
         this.comments = res.list
         this.commentTotal = res.total
+        this.whisperCount = res.whisperCount !== undefined ? res.whisperCount : 0
         if (this.post !== null) {
           const nextPost: NoteItem = NoteHelper.copy(this.post, this.post.likes, this.post.liked)
           nextPost.commentCount = res.total
@@ -106,32 +110,61 @@ struct PostDetailPage {
     this.pendingCommentScroll = false
   }
 
-  private handleLike(noteId: number): void {
+  private handleReact(noteId: number, reactionType: string): void {
     const token: string = AuthSession.getToken()
     if (token.length === 0) {
-      UiHelper.showToast('请先登录后再点赞')
+      UiHelper.showToast('请先登录后再表达心意')
       return
     }
     if (this.post === null || this.post.id !== noteId) {
       return
     }
-    const nextLiked: boolean = !(this.post.liked === true)
-    const nextLikes: number = nextLiked ? this.post.likes + 1 : Math.max(0, this.post.likes - 1)
-    this.post = NoteHelper.copy(this.post, nextLikes, nextLiked)
-
-    PostApi.likePost(noteId, token)
-      .then((res) => {
+    PostApi.reactPost(noteId, reactionType, token)
+      .then((res: ReactionResponse) => {
         if (this.post !== null) {
-          this.post = NoteHelper.copy(this.post, res.likes, res.liked)
+          this.post = NoteHelper.applyReaction(this.post, res)
           UiHelper.markFeedNeedsRefresh()
         }
       })
       .catch((err: Error) => {
-        if (this.post !== null) {
-          this.post = NoteHelper.copy(this.post, this.post.likes, this.post.liked === true)
-        }
-        UiHelper.showToast(err.message || '点赞失败')
+        UiHelper.showToast(err.message || '操作失败')
       })
+  }
+
+  private handleCancelReact(noteId: number): void {
+    const token: string = AuthSession.getToken()
+    if (token.length === 0) {
+      UiHelper.showToast('请先登录')
+      return
+    }
+    if (this.post === null || this.post.id !== noteId) {
+      return
+    }
+    PostApi.cancelReact(noteId, token)
+      .then((res: ReactionResponse) => {
+        if (this.post !== null) {
+          this.post = NoteHelper.applyReaction(this.post, res)
+          UiHelper.markFeedNeedsRefresh()
+        }
+      })
+      .catch((err: Error) => {
+        UiHelper.showToast(err.message || '操作失败')
+      })
+  }
+
+  private isPostAuthor(): boolean {
+    return this.post !== null && this.post.isMine === true
+  }
+
+  private isWhisperComment(item: CommentItem | CommentReplyItem): boolean {
+    return item.commentType === 'whisper'
+  }
+
+  private switchCommentMode(mode: string): void {
+    this.commentMode = mode
+    if (mode === 'whisper') {
+      this.replyTarget = null
+    }
   }
 
   private handleSupport(note: NoteItem): void {
@@ -176,7 +209,7 @@ struct PostDetailPage {
 
     const body: CreateCommentBody = {
       content: content,
-      commentType: 'resonance'
+      commentType: this.commentMode
     }
     if (this.replyTarget !== null) {
       body.parentId = this.replyTarget.parentId
@@ -188,17 +221,19 @@ struct PostDetailPage {
       .then(() => {
         this.draftText = ''
         this.replyTarget = null
-        UiHelper.showToast('评论成功')
+        UiHelper.showToast(this.commentMode === 'whisper' ? '悄悄话已送达' : '评论成功')
         UiHelper.markFeedNeedsRefresh()
         return CommentApi.getComments(this.postId, 1, 50, token)
       })
       .then((res) => {
         this.comments = res.list
         this.commentTotal = res.total
+        this.whisperCount = res.whisperCount !== undefined ? res.whisperCount : 0
         this.listRefreshKey++
         if (this.post !== null) {
           const nextPost: NoteItem = NoteHelper.copy(this.post)
           nextPost.commentCount = res.total
+          nextPost.whisperCount = this.whisperCount
           this.post = nextPost
         }
       })
@@ -277,10 +312,12 @@ struct PostDetailPage {
         .then((res) => {
           this.comments = res.list
           this.commentTotal = res.total
+          this.whisperCount = res.whisperCount !== undefined ? res.whisperCount : 0
           this.listRefreshKey++
           if (this.post !== null) {
             const nextPost: NoteItem = NoteHelper.copy(this.post)
             nextPost.commentCount = res.total
+            nextPost.whisperCount = this.whisperCount
             this.post = nextPost
           }
         })
@@ -288,6 +325,22 @@ struct PostDetailPage {
           UiHelper.showToast(err.message || '删除失败')
         })
     })
+  }
+
+  @Builder
+  buildCommentModeChip(mode: string, label: string) {
+    Text(label)
+      .fontSize(12)
+      .fontWeight(this.commentMode === mode ? FontWeight.Bold : FontWeight.Normal)
+      .fontColor(this.commentMode === mode ? '#31534A' : '#7C8A87')
+      .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+      .backgroundColor(this.commentMode === mode ? '#EAF4F0' : '#FFFFFF')
+      .borderRadius(14)
+      .border({
+        width: 1,
+        color: this.commentMode === mode ? '#31534A' : '#E2E8E6'
+      })
+      .onClick(() => this.switchCommentMode(mode))
   }
 
   @Builder
@@ -302,11 +355,20 @@ struct PostDetailPage {
 
         Column({ space: 4 }) {
           Row() {
+            if (this.isWhisperComment(item)) {
+              Text('🔒')
+                .fontSize(12)
+            }
             Text(item.authorNickname)
               .fontSize(13)
               .fontWeight(FontWeight.Bold)
               .fontColor('#25332F')
               .layoutWeight(1)
+            if (this.isWhisperComment(item)) {
+              Text('悄悄话')
+                .fontSize(10)
+                .fontColor('#8B7AD6')
+            }
             Text(item.timeText)
               .fontSize(11)
               .fontColor('#95A19F')
@@ -320,12 +382,14 @@ struct PostDetailPage {
             .width('100%')
 
           Row({ space: 16 }) {
-            Text('回复')
-              .fontSize(12)
-              .fontColor('#31534A')
-              .onClick(() => {
-                this.startReply(item.id, item.userId, item.authorNickname)
-              })
+            if (!this.isWhisperComment(item)) {
+              Text('回复')
+                .fontSize(12)
+                .fontColor('#31534A')
+                .onClick(() => {
+                  this.startReply(item.id, item.userId, item.authorNickname)
+                })
+            }
             if (item.canDelete === true) {
               Text('删除')
                 .fontSize(12)
@@ -354,6 +418,8 @@ struct PostDetailPage {
     }
     .width('100%')
     .padding({ top: 10, bottom: 10 })
+    .backgroundColor(this.isWhisperComment(item) ? '#F5F0FF' : Color.Transparent)
+    .borderRadius(12)
   }
 
   @Builder
@@ -469,8 +535,12 @@ struct PostDetailPage {
           Column({ space: 12 }) {
             PostCard({
               note: this.post,
-              onLike: (noteId: number) => {
-                this.handleLike(noteId)
+              reactionExpanded: true,
+              onReact: (noteId: number, reactionType: string) => {
+                this.handleReact(noteId, reactionType)
+              },
+              onCancelReact: (noteId: number) => {
+                this.handleCancelReact(noteId)
               },
               onSupport: (note: NoteItem) => {
                 this.handleSupport(note)
@@ -484,6 +554,18 @@ struct PostDetailPage {
               },
               onOpen: () => {}
             })
+
+            if (this.isPostAuthor() && this.whisperCount > 0) {
+              Row() {
+                Text(`收到了 ${this.whisperCount} 条悄悄话`)
+                  .fontSize(13)
+                  .fontColor('#8B7AD6')
+              }
+              .width('100%')
+              .padding({ left: 12, right: 12, top: 10, bottom: 10 })
+              .backgroundColor('#F5F0FF')
+              .borderRadius(12)
+            }
 
             Row() {
               Text(`评论 ${this.commentTotal}`)
@@ -522,6 +604,14 @@ struct PostDetailPage {
         .scrollBar(BarState.Off)
 
         Column({ space: 8 }) {
+          if (!this.isPostAuthor()) {
+            Row({ space: 8 }) {
+              this.buildCommentModeChip('resonance', '公开共鸣')
+              this.buildCommentModeChip('whisper', '悄悄话')
+            }
+            .width('100%')
+          }
+
           if (this.replyTarget !== null) {
             Row() {
               Text(`回复 @${this.replyTarget.nickname}`)
@@ -537,7 +627,12 @@ struct PostDetailPage {
           }
 
           Row({ space: 10 }) {
-            TextArea({ placeholder: '写下你的共鸣...', text: this.draftText })
+            TextArea({
+              placeholder: this.commentMode === 'whisper'
+                ? '这句话只有 TA 能看到，像轻轻拍了一下肩膀。'
+                : '写下你的共鸣...',
+              text: this.draftText
+            })
               .layoutWeight(1)
               .height(72)
               .fontSize(14)

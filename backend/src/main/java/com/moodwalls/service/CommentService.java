@@ -55,8 +55,9 @@ public class CommentService {
         page = Math.max(page, 1);
         PageRequest pageRequest = PageRequest.of(page - 1, size);
 
-        Page<PostComment> topPage = commentRepository
-                .findByPostIdAndStatusAndParentIdIsNullOrderByCreatedAtAsc(post.getId(), STATUS_ACTIVE, pageRequest);
+        Long postAuthorId = post.getUserId();
+        Page<PostComment> topPage = commentRepository.findVisibleTopComments(
+                post.getId(), STATUS_ACTIVE, currentUserId, postAuthorId, pageRequest);
         List<PostComment> tops = topPage.getContent();
 
         List<Long> parentIds = tops.stream().map(PostComment::getId).collect(Collectors.toList());
@@ -90,6 +91,11 @@ public class CommentService {
         response.setPage(page);
         response.setSize(size);
         response.setHasMore(topPage.hasNext());
+        if (isPostAuthor) {
+            long whisperCount = commentRepository.countByPostIdAndStatusAndCommentTypeAndParentIdIsNull(
+                    post.getId(), STATUS_ACTIVE, "whisper");
+            response.setWhisperCount((int) whisperCount);
+        }
         return response;
     }
 
@@ -118,6 +124,14 @@ public class CommentService {
 
         Long parentId = dto.getParentId();
         Long replyToUserId = dto.getReplyToUserId();
+        if ("whisper".equals(commentType)) {
+            if (parentId != null) {
+                throw new BusinessException(400, "悄悄话不支持回复");
+            }
+            if (userId.equals(post.getUserId())) {
+                throw new BusinessException(400, "不能给自己的帖子发悄悄话");
+            }
+        }
         if (parentId != null) {
             PostComment parent = commentRepository.findById(parentId)
                     .filter(c -> c.getStatus() == STATUS_ACTIVE && c.getPostId().equals(postId))
@@ -142,9 +156,11 @@ public class CommentService {
         comment.setStatus(STATUS_ACTIVE);
         PostComment saved = commentRepository.save(comment);
 
-        int count = post.getCommentCount() != null ? post.getCommentCount() : 0;
-        post.setCommentCount(count + 1);
-        postRepository.save(post);
+        if ("resonance".equals(commentType)) {
+            int count = post.getCommentCount() != null ? post.getCommentCount() : 0;
+            post.setCommentCount(count + 1);
+            postRepository.save(post);
+        }
 
         sendCommentNotification(post, saved, userId);
 
@@ -192,7 +208,7 @@ public class CommentService {
             throw new BusinessException(403, "无权删除该评论");
         }
 
-        int removed = 1;
+        int removedResonance = 0;
         comment.setStatus(0);
         commentRepository.save(comment);
 
@@ -201,13 +217,22 @@ public class CommentService {
             for (PostComment reply : replies) {
                 reply.setStatus(0);
                 commentRepository.save(reply);
-                removed++;
+                if ("resonance".equals(reply.getCommentType())) {
+                    removedResonance++;
+                }
             }
+            if ("resonance".equals(comment.getCommentType())) {
+                removedResonance++;
+            }
+        } else if ("resonance".equals(comment.getCommentType())) {
+            removedResonance = 1;
         }
 
-        int count = post.getCommentCount() != null ? post.getCommentCount() : 0;
-        post.setCommentCount(Math.max(0, count - removed));
-        postRepository.save(post);
+        if (removedResonance > 0) {
+            int count = post.getCommentCount() != null ? post.getCommentCount() : 0;
+            post.setCommentCount(Math.max(0, count - removedResonance));
+            postRepository.save(post);
+        }
     }
 
     private Post loadReadablePost(Long postId, Long currentUserId) {
@@ -257,9 +282,15 @@ public class CommentService {
             if (targetUserId.equals(actorUserId)) {
                 return;
             }
-            type = "comment";
-            title = "收到新评论";
-            content = actorName + " 评论了你的帖子";
+            if ("whisper".equals(comment.getCommentType())) {
+                type = "whisper";
+                title = "收到一句悄悄话";
+                content = actorName + " 给你留了一句悄悄话";
+            } else {
+                type = "comment";
+                title = "收到新评论";
+                content = actorName + " 评论了你的帖子";
+            }
         }
 
         Notification notification = new Notification();

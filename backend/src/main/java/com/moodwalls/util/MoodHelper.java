@@ -1,12 +1,21 @@
 package com.moodwalls.util;
 
+import com.moodwalls.dto.MoodCurvePointDto;
+
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public final class MoodHelper {
 
     private static final Map<String, String> LABELS = new HashMap<>();
     private static final Map<String, String> COLORS = new HashMap<>();
+    private static final List<String> CARE_PRIORITY = List.of(
+            "sad", "anxious", "lonely", "tired", "angry", "moved", "calm", "happy"
+    );
+    private static final String[] WEEKDAY_CN = {"日", "一", "二", "三", "四", "五", "六"};
 
     static {
         LABELS.put("happy", "开心");
@@ -61,13 +70,87 @@ public final class MoodHelper {
     }
 
     public static String dominantMoodFromCounts(Map<String, Long> moodCounts) {
+        String picked = pickDominantMood(moodCounts);
+        return picked != null ? picked : "calm";
+    }
+
+    public static String pickDominantMood(Map<String, Long> moodCounts) {
         if (moodCounts == null || moodCounts.isEmpty()) {
-            return "calm";
+            return null;
+        }
+        long max = moodCounts.values().stream().mapToLong(Long::longValue).max().orElse(0L);
+        if (max <= 0) {
+            return null;
+        }
+        for (String mood : CARE_PRIORITY) {
+            if (moodCounts.getOrDefault(mood, 0L) == max) {
+                return mood;
+            }
         }
         return moodCounts.entrySet().stream()
-                .max(Map.Entry.comparingByValue())
+                .filter(e -> e.getValue() == max)
                 .map(Map.Entry::getKey)
-                .orElse("calm");
+                .findFirst()
+                .orElse(null);
+    }
+
+    public static int moodIndex(String mood) {
+        if (mood == null) {
+            return -1;
+        }
+        return switch (mood) {
+            case "sad" -> 0;
+            case "anxious" -> 1;
+            case "lonely" -> 2;
+            case "tired" -> 3;
+            case "angry" -> 4;
+            case "moved" -> 5;
+            case "calm" -> 6;
+            case "happy" -> 7;
+            default -> 4;
+        };
+    }
+
+    public static String weekdayLabel(LocalDate date) {
+        DayOfWeek dayOfWeek = date.getDayOfWeek();
+        int index = dayOfWeek.getValue() % 7;
+        return WEEKDAY_CN[index];
+    }
+
+    public static String buildCurveSummary(List<MoodCurvePointDto> points) {
+        if (points == null || points.isEmpty()) {
+            return "还没有足够的心情记录，去贴第一张吧。";
+        }
+        String first = null;
+        String last = null;
+        int totalPosts = 0;
+        for (MoodCurvePointDto point : points) {
+            totalPosts += point.getPostCount();
+            if (point.getDominantMood() != null) {
+                if (first == null) {
+                    first = point.getDominantMood();
+                }
+                last = point.getDominantMood();
+            }
+        }
+        if (totalPosts == 0) {
+            return "还没有足够的心情记录，去贴第一张吧。";
+        }
+        if (first == null || last == null) {
+            return "这一周你留下了心情记录，继续写下来，会更容易看见自己的变化。";
+        }
+        if (first.equals(last)) {
+            return "这一周你的情绪基调比较稳定，" + labelOf(first) + "陪伴了你大多数日子。";
+        }
+        int firstIdx = moodIndex(first);
+        int lastIdx = moodIndex(last);
+        if (lastIdx > firstIdx) {
+            return "这一周你经历了起伏，但后半段似乎更轻松了一些。";
+        }
+        if (lastIdx < firstIdx) {
+            return "这一周你经历了起伏，记得在忙碌里留一点温柔给自己。";
+        }
+        return "这一周你经历了起伏，但平静的日子也在慢慢增多。";
     }
 
     public static int percent(long part, long total) {
