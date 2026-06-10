@@ -4,7 +4,21 @@
       "Bash(mysql -u root -phjy89607425 moodwalls -e \"SELECT COUNT(*) as cnt FROM posts;\")",
       "Bash(mysql:*)",
       "Bash(time curl -s -w \"\\nHTTP_CODE:%{http_code}\" --max-time 30 http://localhost:8080/api/posts/2/support -X POST -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIzIiwicGhvbmUiOiIxMzkwMDAwMDAwMSIsImlhdCI6MTc4MDQ3NzMxOSwiZXhwIjoxNzgxMDgyMTE5fQ.vke4ceFGaHGUnDMjfbUHoWTi7SqU8axOpKRZm3mvXAs\" -H \"Content-Type: application/json\")",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "WebFetch(domain:docs.siliconflow.cn)",
+      "WebSearch",
+      "Bash(curl -s -N --max-time 15 -X POST https://api.siliconflow.cn/v1/chat/completions -H \"Authorization: Bearer sk-dtmdncziyfpwquhoouhmxhqocpjlkpcmxwjakneheupbbiyu\" -H \"Content-Type: application/json\" -d '{\"\"\"\"model\"\"\"\":\"\"\"\"Qwen/Qwen2.5-7B-Instruct\"\"\"\",\"\"\"\"messages\"\"\"\":[{\"\"\"\"role\"\"\"\":\"\"\"\"user\"\"\"\",\"\"\"\"content\"\"\"\":\"\"\"\"用一句话安慰一个考试没考好的人\"\"\"\"}],\"\"\"\"max_tokens\"\"\"\":100,\"\"\"\"stream\"\"\"\":true}')",
+      "Bash(pkill:*)",
+      "Bash(mvn compile:*)",
+      "Bash(mvn spring-boot:run)",
+      "Bash(curl:*)",
+      "Bash(lsof:*)",
+      "Bash(kill:*)",
+      "Bash(mvn clean compile -q)",
+      "Bash(git fetch origin main)",
+      "Bash(export:*)",
+      "Bash(git merge:*)",
+      "Bash(git stash push -m \"phase123-changes\")"
     ],
     "deny": [],
     "ask": []

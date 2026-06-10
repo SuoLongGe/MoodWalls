@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -24,6 +25,8 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 @RestController
@@ -59,6 +62,7 @@ public class SupportController {
                 .orElseThrow(() -> new BusinessException(404, "用户不存在"));
 
         AiService.AiResponse aiResponse = aiService.supportPost(post, userId);
+        String comfortNote = aiService.getComfortNote(aiResponse.riskLevel());
 
         Notification notif = new Notification();
         notif.setUserId(post.getUserId());
@@ -72,7 +76,9 @@ public class SupportController {
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("response", aiResponse.responseText());
-        result.put("isCrisis", aiResponse.isCrisis());
+        result.put("riskLevel", aiResponse.riskLevel());
+        result.put("isCrisis", aiResponse.riskLevel() >= 2);
+        result.put("comfortNote", comfortNote);
 
         return ApiResponse.ok(result);
     }
@@ -114,5 +120,38 @@ public class SupportController {
         result.put("postCount", report.postCount());
 
         return ApiResponse.ok(result);
+    }
+
+    @GetMapping("/posts/{id}/support/stream")
+    public SseEmitter supportPostStream(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String authorization) {
+        Long userId = tokenUtil.extractUserId(authorization);
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(404, "帖子不存在"));
+
+        String prompt = aiService.buildSupportPromptForStream(post);
+        SseEmitter emitter = new SseEmitter(60000L);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.execute(() -> {
+            try {
+                aiService.streamCallAi(prompt, AiService.getSystemPrompt(), 200, token -> {
+                    try {
+                        emitter.send(SseEmitter.event().data(token));
+                    } catch (Exception ignored) {
+                    }
+                });
+                emitter.complete();
+            } catch (Exception e) {
+                emitter.completeWithError(e);
+            }
+        });
+        executor.shutdown();
+
+        emitter.onCompletion(() -> executor.shutdownNow());
+        emitter.onTimeout(() -> executor.shutdownNow());
+
+        return emitter;
     }
 }
