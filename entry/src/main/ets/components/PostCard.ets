@@ -107,21 +107,22 @@ export struct PostCard {
         .onClick(() => {
           this.onOpen(this.note)
         })
+        .gesture(
+          LongPressGesture({ repeat: false })
+            .onAction(() => {
+              if (this.isMine()) {
+                this.onLongPress(this.note)
+              } else {
+                this.trySendCloud()
+              }
+            }),
+          GestureMask.IgnoreInternal
+        )
 
         this.buildActionBar()
       }
       .width('100%')
       .backgroundColor(AppTheme.CARD)
-      .gesture(
-        LongPressGesture({ repeat: false })
-          .onAction(() => {
-            if (this.isMine()) {
-              this.onLongPress(this.note)
-            } else {
-              this.trySendCloud()
-            }
-          })
-      )
 
       if (this.sunVisible) {
         SunGiftAnimation({

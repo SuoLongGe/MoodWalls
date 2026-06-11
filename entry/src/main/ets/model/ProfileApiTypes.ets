@@ -48,6 +48,7 @@ export interface PostSummary {
   commentCount?: number
   visibility?: string
   canDelete?: boolean
+  cloudCount?: number
 }
 
 export interface PostListResponse {

@@ -80,5 +80,6 @@ export struct SunGiftAnimation {
     .translate({ y: this.sunOffsetY })
     .scale({ x: this.sunScale, y: this.sunScale })
     .opacity(this.sunOpacity)
+    .hitTestBehavior(HitTestMode.None)
   }
 }

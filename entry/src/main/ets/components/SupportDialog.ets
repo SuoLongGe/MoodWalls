@@ -194,5 +194,6 @@ export struct SupportDialog {
     }
     .width('100%')
     .height('100%')
+    .hitTestBehavior(this.visible ? HitTestMode.Default : HitTestMode.None)
   }
 }
