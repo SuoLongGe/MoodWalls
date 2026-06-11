@@ -18,6 +18,7 @@ export interface NoteItem {
   mood: string
   moodLabel: string
   text: string
+  imageUrl?: string
   location: string
   zoneKey?: string
   timeText: string
@@ -26,6 +27,7 @@ export interface NoteItem {
   color: string
   createdAt?: string
   avatarKey?: string
+  avatarUrl?: string
   isMine?: boolean
   mine?: boolean
   commentCount?: number
@@ -68,6 +70,7 @@ export interface NoteItemFromApi {
   mood: string
   moodLabel: string
   text: string
+  imageUrl?: string
   location: string
   zoneKey?: string
   timeText: string
@@ -77,6 +80,7 @@ export interface NoteItemFromApi {
   color: string
   createdAt?: string
   avatarKey?: string
+  avatarUrl?: string
   isMine?: boolean
   mine?: boolean
   commentCount?: number
@@ -241,6 +245,7 @@ export interface CommentReplyItem {
   parentId: number
   authorNickname: string
   authorAvatarKey?: string
+  authorAvatarUrl?: string
   content: string
   commentType: string
   replyToNickname?: string
@@ -256,6 +261,7 @@ export interface CommentItem {
   userId: number
   authorNickname: string
   authorAvatarKey?: string
+  authorAvatarUrl?: string
   content: string
   commentType: string
   parentId?: number | null

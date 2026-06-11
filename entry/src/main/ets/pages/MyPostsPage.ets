@@ -43,12 +43,14 @@ struct MyPostsPage {
 
     const requestPage: number = reset ? 1 : this.page
     ProfileApi.getMyPosts(requestPage, 20).then((result) => {
+      const incoming: Array<PostSummary> =
+        result.list !== undefined && result.list !== null ? result.list : []
       if (reset) {
-        this.posts = result.list
+        this.posts = incoming
       } else {
         const merged: Array<PostSummary> = []
         this.posts.forEach((item: PostSummary) => merged.push(item))
-        result.list.forEach((item: PostSummary) => merged.push(item))
+        incoming.forEach((item: PostSummary) => merged.push(item))
         this.posts = merged
       }
       this.hasMore = result.hasMore
@@ -107,6 +109,7 @@ struct MyPostsPage {
           mood: item.mood,
           moodLabel: item.moodLabel,
           text: item.text,
+          imageUrl: item.imageUrl,
           location: item.location,
           zoneKey: item.zoneKey,
           likes: item.likes,
@@ -115,10 +118,12 @@ struct MyPostsPage {
           createdAt: item.createdAt,
           timeText: item.timeText,
           avatarKey: item.avatarKey,
+          avatarUrl: item.avatarUrl,
           isMine: item.isMine,
           commentCount: item.commentCount,
           visibility: visibility,
-          canDelete: item.canDelete
+          canDelete: item.canDelete,
+          cloudCount: item.cloudCount
         }
         next.push(updated)
       } else {

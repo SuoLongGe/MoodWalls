@@ -1,4 +1,6 @@
 import { AppTheme } from '../common/AppTheme'
+import { ImagePickerHelper } from '../common/ImagePickerHelper'
+import { UiHelper } from '../common/UiHelper'
 import { LOCATION_OPTIONS, MOOD_OPTIONS } from '../mock/MoodWallData'
 import { MoodOption } from '../model/MoodWallTypes'
 
@@ -18,6 +20,7 @@ const NOTE_MOOD_OPTIONS: Array<NoteMoodOption> = [
 export struct PostTab {
   @Link selectedMoodKey: string
   @Link draftText: string
+  @Link draftImageUri: string
   @Link locationIndex: number
   @Link noteDraftText: string
   @Link noteMoodKey: string
@@ -72,6 +75,22 @@ export struct PostTab {
 
   getNoteButtonText(): string {
     return this.submittingNote ? '放入中...' : '放进纸条池'
+  }
+
+  private hasDraftImage(): boolean {
+    return this.draftImageUri.length > 0
+  }
+
+  private pickImage(): void {
+    ImagePickerHelper.pickOne()
+      .then((uri: string) => {
+        if (uri.length > 0) {
+          this.draftImageUri = uri
+        }
+      })
+      .catch(() => {
+        UiHelper.showToast('未能选择图片，请重试')
+      })
   }
 
   @Builder
@@ -149,6 +168,44 @@ export struct PostTab {
         color: AppTheme.SHADOW_LIGHT,
         offsetY: 4
       })
+
+      Column({ space: 10 }) {
+        Row({ space: 10 }) {
+          Text(this.hasDraftImage() ? '更换配图' : '添加配图')
+            .fontSize(13)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(AppTheme.PRIMARY)
+            .onClick(() => {
+              this.pickImage()
+            })
+          if (this.hasDraftImage()) {
+            Text('移除')
+              .fontSize(13)
+              .fontColor('#D86A3D')
+              .onClick(() => {
+                this.draftImageUri = ''
+              })
+          }
+        }
+        .width('100%')
+
+        if (this.hasDraftImage()) {
+          Image(this.draftImageUri)
+            .width('100%')
+            .height(180)
+            .objectFit(ImageFit.Cover)
+            .borderRadius(AppTheme.RADIUS_MD)
+        } else {
+          Text('选一张此刻的心情照片（可选）')
+            .fontSize(12)
+            .fontColor('#95A19F')
+            .width('100%')
+        }
+      }
+      .width('100%')
+      .padding(16)
+      .backgroundColor('#F8FAF9')
+      .borderRadius(AppTheme.RADIUS_LG)
 
       Row() {
         Text(`${this.getTextLength()}/500`)

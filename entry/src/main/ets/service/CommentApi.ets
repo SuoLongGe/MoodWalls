@@ -1,3 +1,4 @@
+import { MediaUrl } from '../common/MediaUrl'
 import { HttpClient } from './HttpClient'
 import {
   CommentItem,
@@ -13,6 +14,7 @@ interface CommentReplyJson {
   parentId?: number | string
   authorNickname?: string
   authorAvatarKey?: string
+  authorAvatarUrl?: string
   content?: string
   commentType?: string
   replyToNickname?: string
@@ -28,6 +30,7 @@ interface CommentJson {
   userId?: number | string
   authorNickname?: string
   authorAvatarKey?: string
+  authorAvatarUrl?: string
   content?: string
   commentType?: string
   parentId?: number | string | null
@@ -101,6 +104,7 @@ export class CommentApi {
       userId: CommentApi.toInt(row.userId),
       authorNickname: row.authorNickname !== undefined && row.authorNickname !== null ? row.authorNickname : '匿名用户',
       authorAvatarKey: row.authorAvatarKey,
+      authorAvatarUrl: MediaUrl.resolve(row.authorAvatarUrl),
       content: row.content !== undefined && row.content !== null ? row.content : '',
       commentType: row.commentType !== undefined && row.commentType !== null ? row.commentType : 'resonance',
       parentId: row.parentId !== undefined && row.parentId !== null ? CommentApi.toInt(row.parentId) : null,
@@ -121,6 +125,7 @@ export class CommentApi {
       parentId: CommentApi.toInt(row.parentId),
       authorNickname: row.authorNickname !== undefined && row.authorNickname !== null ? row.authorNickname : '匿名用户',
       authorAvatarKey: row.authorAvatarKey,
+      authorAvatarUrl: MediaUrl.resolve(row.authorAvatarUrl),
       content: row.content !== undefined && row.content !== null ? row.content : '',
       commentType: row.commentType !== undefined && row.commentType !== null ? row.commentType : 'resonance',
       replyToNickname: row.replyToNickname,

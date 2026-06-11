@@ -1,11 +1,12 @@
 import { AppTheme } from '../common/AppTheme'
-import { getAvatarResource } from '../common/AvatarResources'
+import { UserAvatar } from './UserAvatar'
 import { UiHelper } from '../common/UiHelper'
 
 @Component
 export struct MoodWallHeader {
   @StorageLink('userNickname') userNickname: string = '同学'
   @StorageLink('userAvatarKey') userAvatarKey: string = 'avatar_01'
+  @StorageLink('userAvatarUrl') userAvatarUrl: string = ''
   @StorageLink('unreadNotificationCount') unreadCount: number = 0
   @Prop currentTab: number = 0
   @Prop greeting: string = ''
@@ -76,17 +77,19 @@ export struct MoodWallHeader {
     Column({ space: 12 }) {
       Row({ space: 10 }) {
         Row({ space: 12 }) {
-          Image(getAvatarResource(this.userAvatarKey))
-            .width(46)
-            .height(46)
-            .borderRadius(23)
-            .objectFit(ImageFit.Cover)
-            .border({ width: 2, color: AppTheme.ACCENT_BORDER })
-            .shadow({
-              radius: 8,
-              color: AppTheme.SHADOW_LIGHT,
-              offsetY: 2
+          Stack() {
+            UserAvatar({
+              avatarKey: this.userAvatarKey,
+              avatarUrl: this.userAvatarUrl,
+              avatarSize: 46
             })
+          }
+          .border({ width: 2, color: AppTheme.ACCENT_BORDER, radius: 23 })
+          .shadow({
+            radius: 8,
+            color: AppTheme.SHADOW_LIGHT,
+            offsetY: 2
+          })
 
           Column({ space: 4 }) {
             Text(`${this.greeting}，${this.userNickname}`)

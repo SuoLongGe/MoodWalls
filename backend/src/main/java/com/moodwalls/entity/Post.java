@@ -27,6 +27,9 @@ public class Post {
     @Column(nullable = false, length = 500)
     private String content;
 
+    @Column(name = "image_url", length = 512)
+    private String imageUrl;
+
     @Column(nullable = false, length = 128)
     private String location;
 
@@ -89,6 +92,9 @@ public class Post {
 
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }

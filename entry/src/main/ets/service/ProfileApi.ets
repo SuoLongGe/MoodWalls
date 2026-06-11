@@ -1,9 +1,11 @@
 import { AuthSession } from '../common/AuthSession'
+import { MediaUrl } from '../common/MediaUrl'
 import { HttpClient } from './HttpClient'
 import {
   CalendarDay,
   CalendarResponse,
   PostListResponse,
+  PostSummary,
   ProfileOverview,
   WeekStats,
   WeeklyReport
@@ -14,7 +16,9 @@ interface ProfileOverviewJson {
   id?: number | string
   nickname?: string
   phone?: string
+  email?: string
   avatarKey?: string
+  avatarUrl?: string
   postCount?: number | string
   totalLikes?: number | string
   streakDays?: number | string
@@ -56,6 +60,39 @@ interface MoodCurveResponseJson {
   summary?: string
 }
 
+interface PostSummaryJson {
+  id?: number | string
+  userId?: number | string
+  nickname?: string | null
+  mood?: string | null
+  moodLabel?: string | null
+  text?: string | null
+  imageUrl?: string | null
+  location?: string | null
+  zoneKey?: string | null
+  likes?: number | string
+  liked?: boolean
+  isLiked?: boolean
+  color?: string | null
+  createdAt?: string | null
+  timeText?: string | null
+  avatarKey?: string | null
+  avatarUrl?: string | null
+  isMine?: boolean
+  commentCount?: number | string
+  visibility?: string | null
+  canDelete?: boolean
+  cloudCount?: number | string
+}
+
+interface PostListResponseJson {
+  list?: Array<PostSummaryJson>
+  total?: number | string
+  page?: number | string
+  size?: number | string
+  hasMore?: boolean
+}
+
 export class ProfileApi {
 
   static getOverview(): Promise<ProfileOverview> {
@@ -70,10 +107,10 @@ export class ProfileApi {
   }
 
   static getMyPosts(page: number, size: number): Promise<PostListResponse> {
-    return HttpClient.get<PostListResponse>(
+    return HttpClient.get<object>(
       `/profile/posts?page=${page}&size=${size}`,
       AuthSession.getToken()
-    )
+    ).then((payload: object) => ProfileApi.mapPostListPayload(payload))
   }
 
   static getWeeklyReport(): Promise<WeeklyReport> {
@@ -101,7 +138,9 @@ export class ProfileApi {
       id: ProfileApi.toInt(json.id),
       nickname: json.nickname !== undefined && json.nickname !== null ? json.nickname : '',
       phone: json.phone !== undefined && json.phone !== null ? json.phone : '',
+      email: json.email !== undefined && json.email !== null ? json.email : '',
       avatarKey: json.avatarKey,
+      avatarUrl: json.avatarUrl,
       postCount: ProfileApi.toInt(json.postCount),
       totalLikes: ProfileApi.toInt(json.totalLikes),
       streakDays: ProfileApi.toInt(json.streakDays),
@@ -157,6 +196,59 @@ export class ProfileApi {
       days: ProfileApi.toInt(json.days !== undefined && json.days !== null ? json.days : fallbackDays),
       points: points,
       summary: json.summary !== undefined && json.summary !== null ? json.summary : ''
+    }
+  }
+
+  private static mapPostListPayload(payload: object): PostListResponse {
+    const text: string = JSON.stringify(payload)
+    const json: PostListResponseJson = JSON.parse(text) as PostListResponseJson
+    const rawList: Array<PostSummaryJson> =
+      json.list !== undefined && json.list !== null ? json.list : []
+    const list: Array<PostSummary> = []
+    for (let i: number = 0; i < rawList.length; i++) {
+      list.push(ProfileApi.mapPostSummary(rawList[i]))
+    }
+    return {
+      list: list,
+      total: ProfileApi.toInt(json.total),
+      page: ProfileApi.toInt(json.page) > 0 ? ProfileApi.toInt(json.page) : 1,
+      size: ProfileApi.toInt(json.size) > 0 ? ProfileApi.toInt(json.size) : 20,
+      hasMore: json.hasMore === true
+    }
+  }
+
+  private static mapPostSummary(item: PostSummaryJson): PostSummary {
+    const avatarUrl: string | undefined = MediaUrl.resolve(item.avatarUrl)
+    const mineAvatarUrl: string = AuthSession.getAvatarUrl()
+    const resolvedAvatarUrl: string | undefined = avatarUrl !== undefined
+      ? avatarUrl
+      : (mineAvatarUrl.length > 0 ? MediaUrl.resolve(mineAvatarUrl) : undefined)
+    return {
+      id: ProfileApi.toInt(item.id),
+      userId: ProfileApi.toInt(item.userId),
+      nickname: item.nickname !== undefined && item.nickname !== null ? item.nickname : '',
+      mood: item.mood !== undefined && item.mood !== null ? item.mood : 'calm',
+      moodLabel: item.moodLabel !== undefined && item.moodLabel !== null ? item.moodLabel : '',
+      text: item.text !== undefined && item.text !== null ? item.text : '',
+      imageUrl: MediaUrl.resolve(item.imageUrl),
+      location: item.location !== undefined && item.location !== null ? item.location : '',
+      zoneKey: item.zoneKey !== undefined && item.zoneKey !== null ? item.zoneKey : '',
+      likes: ProfileApi.toInt(item.likes),
+      liked: item.liked === true || item.isLiked === true,
+      color: item.color !== undefined && item.color !== null ? item.color : '#E8ECEB',
+      createdAt: item.createdAt !== undefined && item.createdAt !== null ? item.createdAt : '',
+      timeText: item.timeText !== undefined && item.timeText !== null ? item.timeText : '',
+      avatarKey: item.avatarKey !== undefined && item.avatarKey !== null && item.avatarKey.length > 0
+        ? item.avatarKey
+        : AuthSession.getAvatarKey(),
+      avatarUrl: resolvedAvatarUrl,
+      isMine: item.isMine === true,
+      commentCount: ProfileApi.toInt(item.commentCount),
+      visibility: item.visibility !== undefined && item.visibility !== null && item.visibility.length > 0
+        ? item.visibility
+        : 'public',
+      canDelete: item.canDelete !== false,
+      cloudCount: ProfileApi.toInt(item.cloudCount)
     }
   }
 

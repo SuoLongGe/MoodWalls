@@ -10,6 +10,7 @@ public class CommentDto {
     private Long userId;
     private String authorNickname;
     private String authorAvatarKey;
+    private String authorAvatarUrl;
     private String content;
     private String commentType;
     private Long parentId;
@@ -34,6 +35,9 @@ public class CommentDto {
 
     public String getAuthorAvatarKey() { return authorAvatarKey; }
     public void setAuthorAvatarKey(String authorAvatarKey) { this.authorAvatarKey = authorAvatarKey; }
+
+    public String getAuthorAvatarUrl() { return authorAvatarUrl; }
+    public void setAuthorAvatarUrl(String authorAvatarUrl) { this.authorAvatarUrl = authorAvatarUrl; }
 
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }

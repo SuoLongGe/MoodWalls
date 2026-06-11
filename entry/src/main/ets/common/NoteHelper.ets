@@ -12,6 +12,7 @@ export class NoteHelper {
       mood: src.mood,
       moodLabel: src.moodLabel,
       text: src.text,
+      imageUrl: src.imageUrl,
       location: src.location,
       zoneKey: src.zoneKey,
       timeText: src.timeText,
@@ -20,6 +21,7 @@ export class NoteHelper {
       color: src.color,
       createdAt: src.createdAt,
       avatarKey: src.avatarKey,
+      avatarUrl: src.avatarUrl,
       isMine: src.isMine,
       commentCount: src.commentCount,
       visibility: src.visibility,
@@ -47,25 +49,29 @@ export class NoteHelper {
     const result: NoteItem = {
       id: item.id,
       userId: item.userId,
-      nickname: item.nickname,
-      mood: item.mood,
-      moodLabel: item.moodLabel,
-      text: item.text,
-      location: item.location,
-      zoneKey: item.zoneKey,
-      timeText: item.timeText,
+      nickname: item.nickname !== undefined && item.nickname !== null ? item.nickname : '',
+      mood: item.mood !== undefined && item.mood !== null ? item.mood : 'calm',
+      moodLabel: item.moodLabel !== undefined && item.moodLabel !== null ? item.moodLabel : '',
+      text: item.text !== undefined && item.text !== null ? item.text : '',
+      location: item.location !== undefined && item.location !== null ? item.location : '',
+      zoneKey: item.zoneKey !== undefined && item.zoneKey !== null ? item.zoneKey : '',
+      timeText: item.timeText !== undefined && item.timeText !== null ? item.timeText : '',
       likes: item.likes,
       liked: item.liked,
-      color: item.color,
-      createdAt: item.createdAt,
-      avatarKey: item.avatarKey !== undefined && item.avatarKey.length > 0
+      color: item.color !== undefined && item.color !== null ? item.color : '#E8ECEB',
+      createdAt: item.createdAt !== undefined && item.createdAt !== null ? item.createdAt : '',
+      avatarKey: item.avatarKey !== undefined && item.avatarKey !== null && item.avatarKey.length > 0
         ? item.avatarKey
         : AuthSession.getAvatarKey(),
+      avatarUrl: item.avatarUrl !== undefined && item.avatarUrl !== null ? item.avatarUrl : undefined,
       isMine: forceMine || item.isMine === true,
       commentCount: item.commentCount !== undefined ? item.commentCount : 0,
-      visibility: item.visibility !== undefined && item.visibility.length > 0 ? item.visibility : 'public',
+      visibility: item.visibility !== undefined && item.visibility !== null && item.visibility.length > 0
+        ? item.visibility
+        : 'public',
       canDelete: item.canDelete !== false,
-      cloudCount: item.cloudCount !== undefined ? item.cloudCount : 0
+      cloudCount: item.cloudCount !== undefined ? item.cloudCount : 0,
+      imageUrl: item.imageUrl
     }
     return result
   }

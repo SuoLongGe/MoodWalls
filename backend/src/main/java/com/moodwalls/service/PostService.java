@@ -23,6 +23,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -51,12 +52,14 @@ public class PostService {
     private final AiService aiService;
     private final ReactionService reactionService;
     private final CloudGiftService cloudGiftService;
+    private final PostImageStorageService postImageStorageService;
 
     public PostService(PostRepository postRepository, PostLikeRepository postLikeRepository,
                        PostCommentRepository commentRepository,
                        UserRepository userRepository, NotificationService notificationService,
                        AiService aiService, ReactionService reactionService,
-                       CloudGiftService cloudGiftService) {
+                       CloudGiftService cloudGiftService,
+                       PostImageStorageService postImageStorageService) {
         this.postRepository = postRepository;
         this.postLikeRepository = postLikeRepository;
         this.commentRepository = commentRepository;
@@ -65,6 +68,7 @@ public class PostService {
         this.aiService = aiService;
         this.reactionService = reactionService;
         this.cloudGiftService = cloudGiftService;
+        this.postImageStorageService = postImageStorageService;
     }
 
     public PostListResponseDto getPostList(int page, int size, String mood, Long currentUserId) {
@@ -177,6 +181,11 @@ public class PostService {
 
     @Transactional
     public PublishPostResponseDto createPostWithAi(CreatePostDto dto, Long userId) {
+        return createPostWithAi(dto, userId, null);
+    }
+
+    @Transactional
+    public PublishPostResponseDto createPostWithAi(CreatePostDto dto, Long userId, MultipartFile image) {
         if (dto.getMood() == null || dto.getMood().isBlank()) {
             throw new BusinessException(400, "请选择当前心情");
         }
@@ -200,6 +209,11 @@ public class PostService {
             post.setZoneKey(dto.getZoneKey());
         } else {
             post.setZoneKey(mapLocationToZoneKey(dto.getLocation()));
+        }
+        if (image != null && !image.isEmpty()) {
+            post.setImageUrl(postImageStorageService.savePostImage(image));
+        } else if (dto.getImageBase64() != null && !dto.getImageBase64().isBlank()) {
+            post.setImageUrl(postImageStorageService.saveBase64Image(dto.getImageBase64()));
         }
         post.setLikeCount(0);
         post.setCommentCount(0);
@@ -405,6 +419,8 @@ public class PostService {
         dto.setMood(post.getMood());
         dto.setMoodLabel(MoodHelper.labelOf(post.getMood()));
         dto.setText(post.getContent());
+        // 返回相对路径，由客户端按 ApiConfig 中的服务器地址拼接完整 URL
+        dto.setImageUrl(post.getImageUrl());
         dto.setLocation(post.getLocation());
         dto.setZoneKey(post.getZoneKey());
         dto.setLikes(post.getLikeCount());
@@ -416,6 +432,7 @@ public class PostService {
         User user = userMap.get(post.getUserId());
         dto.setNickname(user != null ? user.getNickname() : "匿名用户");
         dto.setAvatarKey(user != null && user.getAvatarKey() != null ? user.getAvatarKey() : "avatar_01");
+        dto.setAvatarUrl(user != null ? user.getAvatarUrl() : null);
         boolean mine = currentUserId != null && currentUserId.equals(post.getUserId());
         dto.setMine(mine);
         dto.setCommentCount(post.getCommentCount() != null ? post.getCommentCount() : 0);

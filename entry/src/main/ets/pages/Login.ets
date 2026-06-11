@@ -9,14 +9,25 @@ import { AuthApi } from '../service/AuthApi'
 @Entry
 @Component
 struct Login {
+  @State loginMode: string = 'password'
   @State account: string = ''
   @State password: string = ''
+  @State email: string = ''
+  @State emailCode: string = ''
+  @State emailCodeId: string = ''
   @State loading: boolean = false
+  @State sendingCode: boolean = false
+  @State resendSeconds: number = 0
+  private resendTimer: number = -1
 
   aboutToAppear(): void {
     if (AuthSession.isLoggedIn()) {
       UiHelper.replaceTo('pages/Index')
     }
+  }
+
+  aboutToDisappear(): void {
+    this.clearResendTimer()
   }
 
   pageTransition() {
@@ -28,17 +39,95 @@ struct Login {
       .translate({ y: -24 })
   }
 
+  private clearResendTimer(): void {
+    if (this.resendTimer >= 0) {
+      clearInterval(this.resendTimer)
+      this.resendTimer = -1
+    }
+  }
+
+  private startResendCountdown(seconds: number): void {
+    this.clearResendTimer()
+    this.resendSeconds = seconds
+    this.resendTimer = setInterval(() => {
+      if (this.resendSeconds <= 1) {
+        this.resendSeconds = 0
+        this.clearResendTimer()
+      } else {
+        this.resendSeconds -= 1
+      }
+    }, 1000)
+  }
+
+  private isValidEmail(value: string): boolean {
+    const trimmed: string = value.trim()
+    return trimmed.includes('@') && trimmed.includes('.') && trimmed.length >= 5
+  }
+
+  private sendEmailCode(): void {
+    if (this.sendingCode || this.resendSeconds > 0) {
+      return
+    }
+    if (!this.isValidEmail(this.email)) {
+      UiHelper.showToast('请输入正确的邮箱地址')
+      return
+    }
+    this.sendingCode = true
+    AuthApi.sendEmailCode(this.email.trim(), 'login').then((result) => {
+      this.emailCodeId = result.codeId
+      this.emailCode = ''
+      this.startResendCountdown(60)
+      UiHelper.showToast('验证码已发送至邮箱')
+    }).catch((err: Error) => {
+      UiHelper.showToast(err.message)
+    }).finally(() => {
+      this.sendingCode = false
+    })
+  }
+
   handleLogin(): void {
     if (this.loading) {
       return
     }
+    if (this.loginMode === 'password') {
+      this.handlePasswordLogin()
+    } else {
+      this.handleEmailLogin()
+    }
+  }
+
+  private handlePasswordLogin(): void {
     if (this.account.trim().length === 0 || this.password.trim().length === 0) {
-      UiHelper.showToast('请输入昵称/手机号和密码')
+      UiHelper.showToast('请输入账号和密码')
       return
     }
-
     this.loading = true
     AuthApi.login(this.account.trim(), this.password).then((result: AuthResult) => {
+      AuthSession.save(result.user, result.token)
+      UiHelper.showToast('登录成功')
+      UiHelper.replaceTo('pages/Index')
+    }).catch((err: Error) => {
+      UiHelper.showToast(err.message)
+    }).finally(() => {
+      this.loading = false
+    })
+  }
+
+  private handleEmailLogin(): void {
+    if (!this.isValidEmail(this.email)) {
+      UiHelper.showToast('请输入正确的邮箱地址')
+      return
+    }
+    if (this.emailCodeId.length === 0) {
+      UiHelper.showToast('请先获取邮箱验证码')
+      return
+    }
+    if (this.emailCode.trim().length === 0) {
+      UiHelper.showToast('请输入邮箱验证码')
+      return
+    }
+    this.loading = true
+    AuthApi.loginByEmail(this.email.trim(), this.emailCodeId, this.emailCode.trim()).then((result: AuthResult) => {
       AuthSession.save(result.user, result.token)
       UiHelper.showToast('登录成功')
       UiHelper.replaceTo('pages/Index')
@@ -90,19 +179,11 @@ struct Login {
           .alignItems(HorizontalAlign.Center)
 
           Column({ space: 18 }) {
-            AuthInput({
-              placeholder: '昵称 / 手机号',
-              value: $account,
-              leadingLabel: '账'
-            })
-
-            AuthInput({
-              placeholder: '密码',
-              value: $password,
-              leadingLabel: '密',
-              isPassword: true,
-              showToggle: true
-            })
+            if (this.loginMode === 'password') {
+              this.buildPasswordForm()
+            } else {
+              this.buildEmailForm()
+            }
 
             Button(this.loading ? '登录中...' : '登录')
               .width('100%')
@@ -121,7 +202,7 @@ struct Login {
                 .fontSize(13)
                 .fontColor(AuthTheme.LINK_MUTED)
                 .onClick(() => {
-                  UiHelper.showToast('请联系校园心理中心重置密码')
+                  UiHelper.showToast('请使用邮箱验证码登录，或在个人中心修改密码')
                 })
 
               Text('新用户注册')
@@ -141,7 +222,7 @@ struct Login {
               Divider()
                 .layoutWeight(1)
                 .color(AuthTheme.DIVIDER)
-              Text('第三方登录')
+              Text('其他登录方式')
                 .fontSize(12)
                 .fontColor(AuthTheme.LINK_MUTED)
               Divider()
@@ -151,12 +232,18 @@ struct Login {
             .width('100%')
             .margin({ top: 4 })
 
-            Row({ space: 36 }) {
-              this.buildSocialButton('微信', '#07C160')
-              this.buildSocialButton('QQ', '#2D74C4')
-            }
-            .width('100%')
-            .justifyContent(FlexAlign.Center)
+            Button(this.loginMode === 'password' ? '使用邮箱验证码登录' : '使用账号密码登录')
+              .width('100%')
+              .height(44)
+              .fontSize(14)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(AuthTheme.PRIMARY)
+              .backgroundColor('#F2F7FC')
+              .borderRadius(22)
+              .enabled(!this.loading)
+              .onClick(() => {
+                this.loginMode = this.loginMode === 'password' ? 'email' : 'password'
+              })
           }
           .width('100%')
           .padding(28)
@@ -200,20 +287,49 @@ struct Login {
   }
 
   @Builder
-  buildSocialButton(label: string, color: string) {
-    Stack({ alignContent: Alignment.Center }) {
-      Circle()
-        .width(48)
-        .height(48)
-        .fill(Color.White)
-        .shadow({ radius: 10, color: 'rgba(0,0,0,0.06)', offsetY: 4 })
-      Text(label)
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(color)
-    }
-    .onClick(() => {
-      UiHelper.showToast(`${label} 登录即将开放`)
+  buildPasswordForm() {
+    AuthInput({
+      placeholder: '昵称 / 手机号 / 邮箱',
+      value: $account,
+      leadingLabel: '账'
     })
+
+    AuthInput({
+      placeholder: '密码',
+      value: $password,
+      leadingLabel: '密',
+      isPassword: true,
+      showToggle: true
+    })
+  }
+
+  @Builder
+  buildEmailForm() {
+    AuthInput({
+      placeholder: '请输入邮箱',
+      value: $email,
+      leadingLabel: '邮'
+    })
+
+    Row({ space: 10 }) {
+      Column() {
+        AuthInput({
+          placeholder: '请输入邮箱验证码',
+          value: $emailCode
+        })
+      }
+      .layoutWeight(1)
+
+      Button(this.sendingCode ? '发送中' : (this.resendSeconds > 0 ? `${this.resendSeconds}s` : '获取验证码'))
+        .width(108)
+        .height(44)
+        .fontSize(12)
+        .fontColor(Color.White)
+        .backgroundColor(this.resendSeconds > 0 || this.sendingCode ? '#9AB8D8' : AuthTheme.PRIMARY)
+        .borderRadius(12)
+        .enabled(!this.sendingCode && this.resendSeconds === 0)
+        .onClick(() => this.sendEmailCode())
+    }
+    .alignItems(VerticalAlign.Top)
   }
 }

@@ -20,6 +20,7 @@ import com.moodwalls.service.CloudGiftService;
 import com.moodwalls.service.CommentService;
 import com.moodwalls.service.PostService;
 import com.moodwalls.service.ReactionService;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api")
@@ -139,12 +141,33 @@ public class PostController {
         return ApiResponse.ok(result);
     }
 
-    @PostMapping("/posts")
+    @PostMapping(value = "/posts", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ApiResponse<PublishPostResponseDto> createPost(
             @RequestBody CreatePostDto dto,
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         Long userId = tokenUtil.extractUserId(authorization);
         PublishPostResponseDto result = postService.createPostWithAi(dto, userId);
+        return ApiResponse.ok(result);
+    }
+
+    /**
+     * 带配图发帖（multipart/form-data），与纯 JSON 的 POST /posts 分离，避免 Content-Type 协商冲突。
+     */
+    @PostMapping("/posts/with-image")
+    public ApiResponse<PublishPostResponseDto> createPostWithImage(
+            @RequestParam("mood") String mood,
+            @RequestParam("text") String text,
+            @RequestParam(value = "location", required = false, defaultValue = "") String location,
+            @RequestParam(value = "zoneKey", required = false) String zoneKey,
+            @RequestParam(value = "image", required = false) MultipartFile image,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        Long userId = tokenUtil.extractUserId(authorization);
+        CreatePostDto dto = new CreatePostDto();
+        dto.setMood(mood);
+        dto.setText(text);
+        dto.setLocation(location);
+        dto.setZoneKey(zoneKey);
+        PublishPostResponseDto result = postService.createPostWithAi(dto, userId, image);
         return ApiResponse.ok(result);
     }
 

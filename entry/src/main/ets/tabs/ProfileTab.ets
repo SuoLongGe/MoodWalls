@@ -1,8 +1,11 @@
+import { common } from '@kit.AbilityKit'
 import { AuthTheme } from '../common/AuthTheme'
 import { AppTheme } from '../common/AppTheme'
 import { AuthSession } from '../common/AuthSession'
 import { AVATAR_KEYS, getAvatarResource } from '../common/AvatarResources'
+import { ImagePickerHelper } from '../common/ImagePickerHelper'
 import { UiHelper } from '../common/UiHelper'
+import { UserAvatar } from '../components/UserAvatar'
 import { AuthInput } from '../components/auth/AuthInput'
 import { CalendarCell, CalendarDay, CalendarResponse, ProfileOverview } from '../model/ProfileApiTypes'
 import { NotificationStore } from '../common/NotificationStore'
@@ -22,17 +25,28 @@ type MoodViewTab = 'curve' | 'distribution'
 export struct ProfileTab {
   @StorageLink('userNickname') userNickname: string = '同学'
   @StorageLink('userAccount') userAccount: string = ''
+  @StorageLink('userEmail') userEmail: string = ''
+  @StorageLink('userPhone') userPhone: string = ''
   @StorageLink('userAvatarKey') userAvatarKey: string = 'avatar_01'
+  @StorageLink('userAvatarUrl') userAvatarUrl: string = ''
   @Prop @Watch('onProfileRefreshTick') profileRefreshTick: number = 0
   onOpenReport: (report: string) => void = () => {}
 
   @State showEditProfile: boolean = false
   @State editNickname: string = ''
+  @State editPhone: string = ''
+  @State editEmail: string = ''
+  @State editEmailCode: string = ''
+  @State editEmailCodeId: string = ''
   @State editAvatarKey: string = 'avatar_01'
+  @State editPickedImageUri: string = ''
+  @State sendingBindEmailCode: boolean = false
+  @State bindResendSeconds: number = 0
   @State oldPassword: string = ''
   @State newPassword: string = ''
   @State confirmPassword: string = ''
   @State saving: boolean = false
+  private bindResendTimer: number = -1
 
   @StorageLink('profilePostCount') postCount: number = 0
   @StorageLink('profileTotalLikes') totalLikes: number = 0
@@ -377,11 +391,68 @@ export struct ProfileTab {
 
   openEditProfile(): void {
     this.editNickname = this.userNickname
+    this.editPhone = ''
+    this.editEmail = ''
+    this.editEmailCode = ''
+    this.editEmailCodeId = ''
     this.editAvatarKey = this.userAvatarKey
+    this.editPickedImageUri = ''
     this.oldPassword = ''
     this.newPassword = ''
     this.confirmPassword = ''
+    this.clearBindResendTimer()
     this.showEditProfile = true
+  }
+
+  private clearBindResendTimer(): void {
+    if (this.bindResendTimer >= 0) {
+      clearInterval(this.bindResendTimer)
+      this.bindResendTimer = -1
+    }
+    this.bindResendSeconds = 0
+  }
+
+  private startBindResendCountdown(seconds: number): void {
+    this.clearBindResendTimer()
+    this.bindResendSeconds = seconds
+    this.bindResendTimer = setInterval(() => {
+      if (this.bindResendSeconds <= 1) {
+        this.bindResendSeconds = 0
+        this.clearBindResendTimer()
+      } else {
+        this.bindResendSeconds -= 1
+      }
+    }, 1000)
+  }
+
+  private isValidEmail(value: string): boolean {
+    const trimmed: string = value.trim()
+    return trimmed.includes('@') && trimmed.includes('.') && trimmed.length >= 5
+  }
+
+  private isValidPhone(value: string): boolean {
+    return /^1\d{10}$/.test(value.trim())
+  }
+
+  private sendBindEmailCode(): void {
+    if (this.sendingBindEmailCode || this.bindResendSeconds > 0) {
+      return
+    }
+    if (!this.isValidEmail(this.editEmail)) {
+      UiHelper.showToast('请输入正确的新邮箱地址')
+      return
+    }
+    this.sendingBindEmailCode = true
+    AuthApi.sendEmailCode(this.editEmail.trim(), 'bind_email').then((result) => {
+      this.editEmailCodeId = result.codeId
+      this.editEmailCode = ''
+      this.startBindResendCountdown(60)
+      UiHelper.showToast('验证码已发送至新邮箱')
+    }).catch((err: Error) => {
+      UiHelper.showToast(err.message)
+    }).finally(() => {
+      this.sendingBindEmailCode = false
+    })
   }
 
   saveAll(): void {
@@ -409,8 +480,38 @@ export struct ProfileTab {
       }
     }
 
+    const newPhone: string = this.editPhone.trim()
+    const newEmail: string = this.editEmail.trim()
+    const phoneChanged: boolean = newPhone.length > 0
+    const emailChanged: boolean = newEmail.length > 0
+    if (phoneChanged && !this.isValidPhone(newPhone)) {
+      UiHelper.showToast('请输入正确的11位手机号')
+      return
+    }
+    if (emailChanged) {
+      if (!this.isValidEmail(newEmail)) {
+        UiHelper.showToast('请输入正确的新邮箱地址')
+        return
+      }
+      if (this.editEmailCodeId.length === 0 || this.editEmailCode.trim().length === 0) {
+        UiHelper.showToast('更换邮箱请先获取并填写验证码')
+        return
+      }
+    }
+
     this.saving = true
-    AuthApi.updateProfile(this.editNickname.trim(), this.editAvatarKey).then((profile) => {
+    const pageContext: common.UIAbilityContext = getContext(this) as common.UIAbilityContext
+    const pickedUri: string | undefined = this.editPickedImageUri.length > 0 ? this.editPickedImageUri : undefined
+    AuthApi.updateProfile(
+      this.editNickname.trim(),
+      this.editAvatarKey,
+      phoneChanged ? newPhone : undefined,
+      emailChanged ? newEmail : undefined,
+      emailChanged ? this.editEmailCodeId : undefined,
+      emailChanged ? this.editEmailCode.trim() : undefined,
+      pageContext,
+      pickedUri
+    ).then((profile) => {
       AuthSession.updateUser(profile)
       if (!needChangePassword) {
         return Promise.resolve(false)
@@ -513,6 +614,18 @@ export struct ProfileTab {
     .onClick(() => onTap())
   }
 
+  private pickCustomAvatar(): void {
+    ImagePickerHelper.pickOne()
+      .then((uri: string) => {
+        if (uri.length > 0) {
+          this.editPickedImageUri = uri
+        }
+      })
+      .catch(() => {
+        UiHelper.showToast('未能选择图片，请重试')
+      })
+  }
+
   private toggleTheme(): void {
     const next: string = this.themeMode === 'dark' ? 'light' : 'dark'
     AppStorage.setOrCreate('themeMode', next)
@@ -533,6 +646,51 @@ export struct ProfileTab {
           .fontColor('#6E7C79')
           .width('100%')
 
+        Row({ space: 12 }) {
+          if (this.editPickedImageUri.length > 0) {
+            Image(this.editPickedImageUri)
+              .width(56)
+              .height(56)
+              .borderRadius(28)
+              .objectFit(ImageFit.Cover)
+          } else if (this.userAvatarUrl.length > 0) {
+            UserAvatar({
+              avatarKey: this.editAvatarKey,
+              avatarUrl: this.userAvatarUrl,
+              avatarSize: 56
+            })
+          } else {
+            UserAvatar({
+              avatarKey: this.editAvatarKey,
+              avatarSize: 56
+            })
+          }
+          Column({ space: 6 }) {
+            Text('从相册选择')
+              .fontSize(13)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(AppTheme.PRIMARY)
+              .onClick(() => {
+                this.pickCustomAvatar()
+              })
+            if (this.editPickedImageUri.length > 0) {
+              Text('清除本地照片')
+                .fontSize(12)
+                .fontColor('#D86A3D')
+                .onClick(() => {
+                  this.editPickedImageUri = ''
+                })
+            }
+          }
+          .alignItems(HorizontalAlign.Start)
+        }
+        .width('100%')
+
+        Text('或选择预设头像')
+          .fontSize(12)
+          .fontColor('#95A19F')
+          .width('100%')
+
         Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
           ForEach(AVATAR_KEYS, (key: string) => {
             Image(getAvatarResource(key))
@@ -548,6 +706,7 @@ export struct ProfileTab {
               .margin({ bottom: 10 })
               .onClick(() => {
                 this.editAvatarKey = key
+                this.editPickedImageUri = ''
               })
           }, (key: string) => key)
         }
@@ -562,6 +721,47 @@ export struct ProfileTab {
           placeholder: '输入新昵称',
           value: $editNickname
         })
+
+        Text('手机号')
+          .fontSize(13)
+          .fontColor('#6E7C79')
+          .width('100%')
+        AuthInput({
+          placeholder: this.userPhone.length > 0 ? `当前：${this.userPhone}` : '输入新手机号',
+          value: $editPhone
+        })
+
+        Text('邮箱')
+          .fontSize(13)
+          .fontColor('#6E7C79')
+          .width('100%')
+        AuthInput({
+          placeholder: this.userEmail.length > 0 ? `当前：${this.userEmail}` : '输入新邮箱',
+          value: $editEmail
+        })
+
+        Row({ space: 10 }) {
+          Column() {
+            AuthInput({
+              placeholder: '更换邮箱时填写验证码',
+              value: $editEmailCode
+            })
+          }
+          .layoutWeight(1)
+
+          Button(this.sendingBindEmailCode ? '发送中' :
+            (this.bindResendSeconds > 0 ? `${this.bindResendSeconds}s` : '获取验证码'))
+            .width(108)
+            .height(44)
+            .fontSize(12)
+            .fontColor(Color.White)
+            .backgroundColor(this.bindResendSeconds > 0 || this.sendingBindEmailCode ? '#9AB8D8' : AuthTheme.PRIMARY)
+            .borderRadius(12)
+            .enabled(!this.sendingBindEmailCode && this.bindResendSeconds === 0)
+            .onClick(() => this.sendBindEmailCode())
+        }
+        .alignItems(VerticalAlign.Top)
+        .width('100%')
 
         Divider().color('#F0F4F8').margin({ top: 4, bottom: 4 })
 
@@ -656,11 +856,11 @@ export struct ProfileTab {
       Column({ space: 0 }) {
         Column({ space: 12 }) {
           Row({ space: 12 }) {
-            Image(getAvatarResource(this.userAvatarKey))
-              .width(72)
-              .height(72)
-              .borderRadius(36)
-              .objectFit(ImageFit.Cover)
+            UserAvatar({
+              avatarKey: this.userAvatarKey,
+              avatarUrl: this.userAvatarUrl,
+              avatarSize: 72
+            })
 
             Column({ space: 6 }) {
               Text(this.userNickname)
@@ -669,9 +869,21 @@ export struct ProfileTab {
                 .fontColor('#31534A')
                 .maxLines(1)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
-              Text(`账号：${this.userAccount}`)
-                .fontSize(12)
-                .fontColor('#6E7C79')
+              if (this.userPhone.length > 0) {
+                Text(`手机：${this.userPhone}`)
+                  .fontSize(12)
+                  .fontColor('#6E7C79')
+              }
+              if (this.userEmail.length > 0) {
+                Text(`邮箱：${this.userEmail}`)
+                  .fontSize(12)
+                  .fontColor('#6E7C79')
+              }
+              if (this.userPhone.length === 0 && this.userEmail.length === 0 && this.userAccount.length > 0) {
+                Text(`账号：${this.userAccount}`)
+                  .fontSize(12)
+                  .fontColor('#6E7C79')
+              }
             }
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)

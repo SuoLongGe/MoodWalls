@@ -11,6 +11,7 @@ public class CommentReplyDto {
     private Long parentId;
     private String authorNickname;
     private String authorAvatarKey;
+    private String authorAvatarUrl;
     private String content;
     private String commentType;
     private String replyToNickname;
@@ -36,6 +37,9 @@ public class CommentReplyDto {
 
     public String getAuthorAvatarKey() { return authorAvatarKey; }
     public void setAuthorAvatarKey(String authorAvatarKey) { this.authorAvatarKey = authorAvatarKey; }
+
+    public String getAuthorAvatarUrl() { return authorAvatarUrl; }
+    public void setAuthorAvatarUrl(String authorAvatarUrl) { this.authorAvatarUrl = authorAvatarUrl; }
 
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }

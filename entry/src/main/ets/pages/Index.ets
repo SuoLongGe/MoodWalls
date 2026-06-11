@@ -1,3 +1,4 @@
+import { common } from '@kit.AbilityKit'
 import { AppTheme } from '../common/AppTheme'
 import { AuthSession } from '../common/AuthSession'
 import { NoteHelper } from '../common/NoteHelper'
@@ -25,6 +26,7 @@ struct Index {
   @State filterMood: string = 'all'
   @State selectedMoodKey: string = 'calm'
   @State draftText: string = ''
+  @State draftImageUri: string = ''
   @State locationIndex: number = 0
   @State @Watch('onSupportVisibleChange') supportVisible: boolean = false
   @State supportTitle: string = ''
@@ -354,11 +356,13 @@ struct Index {
     const mood: MoodOption = MOOD_OPTIONS.find((item: MoodOption) => item.key === this.selectedMoodKey) ?? MOOD_OPTIONS[0]
     const location: string = LOCATION_OPTIONS[this.locationIndex]
 
+    const imageUri: string = this.draftImageUri
+    const pageContext: common.UIAbilityContext = getContext(this) as common.UIAbilityContext
     PostApi.createPost({
       mood: mood.key,
       text: content,
       location: location
-    }, token)
+    }, token, imageUri.length > 0 ? imageUri : undefined, pageContext)
       .then((res) => {
         const aiResponse: string = res.aiResponse ?? '你已经很努力了。先把这份情绪放在这里，慢慢呼吸一下，再给自己一点点缓冲空间。'
         const riskLevel: number = res.riskLevel !== undefined ? res.riskLevel : 0
@@ -381,11 +385,12 @@ struct Index {
           isMine: true,
           commentCount: res.post.commentCount !== undefined ? res.post.commentCount : 0,
           visibility: res.post.visibility !== undefined ? res.post.visibility : 'public',
-          canDelete: true
+          canDelete: true,
+          imageUrl: res.post.imageUrl
         }
         this.notes = [newNote, ...this.notes]
         this.draftText = ''
-        this.publishing = false
+        this.draftImageUri = ''
         this.currentTab = 0
         if (riskLevel === 2) {
           this.supportTitle = '⚠️ 我们很关心你'
@@ -403,8 +408,10 @@ struct Index {
       })
       .catch((e: Error) => {
         console.error('发帖失败: ' + e.message)
-        this.publishing = false
         UiHelper.showToast(e.message || '发帖失败，请稍后重试')
+      })
+      .finally(() => {
+        this.publishing = false
       })
   }
 
@@ -452,6 +459,7 @@ struct Index {
                     PostTab({
                       selectedMoodKey: $selectedMoodKey,
                       draftText: $draftText,
+                      draftImageUri: $draftImageUri,
                       locationIndex: $locationIndex,
                       noteDraftText: $noteDraftText,
                       noteMoodKey: $noteMoodKey,

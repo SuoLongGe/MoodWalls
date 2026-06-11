@@ -10,7 +10,10 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate('isLoggedIn', false)
     AppStorage.setOrCreate('userNickname', '')
     AppStorage.setOrCreate('userAccount', '')
+    AppStorage.setOrCreate('userEmail', '')
+    AppStorage.setOrCreate('userPhone', '')
     AppStorage.setOrCreate('userAvatarKey', '')
+    AppStorage.setOrCreate('userAvatarUrl', '')
     AppStorage.setOrCreate('userId', 0)
     AppStorage.setOrCreate('unreadNotificationCount', 0)
     try {

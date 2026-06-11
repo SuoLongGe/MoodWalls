@@ -5,12 +5,12 @@ import { ApiResponse } from '../model/AuthApiTypes'
 
 export class HttpClient {
 
-  static post<T>(path: string, body: object | undefined, token?: string): Promise<T> {
-    return HttpClient.request<T>(path, http.RequestMethod.POST, body, token)
+  static post<T>(path: string, body: object | undefined, token?: string, timeoutMs: number = 20000): Promise<T> {
+    return HttpClient.request<T>(path, http.RequestMethod.POST, body, token, timeoutMs)
   }
 
-  static put<T>(path: string, body: object | undefined, token: string): Promise<T> {
-    return HttpClient.request<T>(path, http.RequestMethod.PUT, body, token)
+  static put<T>(path: string, body: object | undefined, token: string, timeoutMs: number = 20000): Promise<T> {
+    return HttpClient.request<T>(path, http.RequestMethod.PUT, body, token, timeoutMs)
   }
 
   static get<T>(path: string, token?: string): Promise<T> {
@@ -34,7 +34,8 @@ export class HttpClient {
     path: string,
     method: http.RequestMethod,
     body?: object,
-    token?: string
+    token?: string,
+    timeoutMs: number = 20000
   ): Promise<T> {
     const httpRequest = http.createHttp()
     let headers: HttpHeaders = {
@@ -54,8 +55,8 @@ export class HttpClient {
       header: headers,
       extraData: extraData,
       expectDataType: http.HttpDataType.STRING,
-      connectTimeout: 20000,
-      readTimeout: 20000
+      connectTimeout: timeoutMs,
+      readTimeout: timeoutMs
     }
 
     return new Promise<T>((resolve, reject) => {
@@ -139,3 +140,4 @@ interface HttpRequestOptions {
   connectTimeout: number
   readTimeout: number
 }
+

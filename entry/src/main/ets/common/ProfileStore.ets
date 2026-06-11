@@ -38,11 +38,19 @@ export class ProfileStore {
     if (avatarKey.length > 0) {
       AppStorage.setOrCreate('userAvatarKey', avatarKey)
     }
+    const avatarUrl: string = overview.avatarUrl ?? ''
+    AppStorage.setOrCreate('userAvatarUrl', avatarUrl)
     if (overview.nickname.length > 0) {
       AppStorage.setOrCreate('userNickname', overview.nickname)
     }
-    if (overview.phone.length > 0) {
-      AppStorage.setOrCreate('userAccount', overview.phone)
+    const email: string = overview.email !== undefined ? overview.email : ''
+    const phone: string = overview.phone !== undefined ? overview.phone : ''
+    AppStorage.setOrCreate('userEmail', email)
+    AppStorage.setOrCreate('userPhone', phone)
+    if (email.length > 0) {
+      AppStorage.setOrCreate('userAccount', email)
+    } else if (phone.length > 0) {
+      AppStorage.setOrCreate('userAccount', phone)
     }
     if (overview.id > 0) {
       AppStorage.setOrCreate(AuthSession.KEY_USER_ID, overview.id)

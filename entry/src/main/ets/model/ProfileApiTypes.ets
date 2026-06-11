@@ -8,7 +8,9 @@ export interface ProfileOverview {
   id: number
   nickname: string
   phone: string
+  email?: string
   avatarKey?: string
+  avatarUrl?: string
   postCount: number
   totalLikes: number
   streakDays: number
@@ -36,6 +38,7 @@ export interface PostSummary {
   mood: string
   moodLabel: string
   text: string
+  imageUrl?: string
   location: string
   zoneKey: string
   likes: number
@@ -44,6 +47,7 @@ export interface PostSummary {
   createdAt: string
   timeText: string
   avatarKey?: string
+  avatarUrl?: string
   isMine?: boolean
   commentCount?: number
   visibility?: string

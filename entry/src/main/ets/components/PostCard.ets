@@ -2,7 +2,7 @@ import { AppTheme } from '../common/AppTheme'
 import { CloudGiftThrottle } from '../common/CloudGiftThrottle'
 import { UiHelper } from '../common/UiHelper'
 import { NoteItem } from '../model/MoodWallTypes'
-import { getAvatarResource } from '../common/AvatarResources'
+import { UserAvatar } from './UserAvatar'
 import { AuthSession } from '../common/AuthSession'
 import { PostApi } from '../service/PostApi'
 import { SunGiftAnimation } from './SunGiftAnimation'
@@ -61,6 +61,14 @@ export struct PostCard {
     return this.note.cloudCount !== undefined ? this.note.cloudCount : 0
   }
 
+  private hasLocation(): boolean {
+    return this.note.location !== undefined && this.note.location !== null && this.note.location.length > 0
+  }
+
+  private hasPostImage(): boolean {
+    return this.note.imageUrl !== undefined && this.note.imageUrl !== null && this.note.imageUrl.length > 0
+  }
+
   private trySendCloud(): void {
     if (this.isMine() || this.sunVisible || this.sunSending) {
       return
@@ -95,7 +103,8 @@ export struct PostCard {
         Column({ space: 8 }) {
           this.buildHeader()
           this.buildBody()
-          if (this.note.location.length > 0) {
+          this.buildPostImage()
+          if (this.hasLocation()) {
             this.buildLocation()
           }
           if (this.isMine() && this.cloudCount() > 0) {
@@ -138,11 +147,11 @@ export struct PostCard {
   @Builder
   buildHeader() {
     Row({ space: 10 }) {
-      Image(getAvatarResource(this.avatarKey()))
-        .width(40)
-        .height(40)
-        .borderRadius(20)
-        .objectFit(ImageFit.Cover)
+      UserAvatar({
+        avatarKey: this.avatarKey(),
+        avatarUrl: this.note.avatarUrl !== undefined && this.note.avatarUrl !== null ? this.note.avatarUrl : '',
+        avatarSize: 40
+      })
 
       Column({ space: 3 }) {
         Row({ space: 6 }) {
@@ -208,6 +217,17 @@ export struct PostCard {
       .lineHeight(24)
       .fontColor(AppTheme.TEXT_TITLE)
       .width('100%')
+  }
+
+  @Builder
+  buildPostImage() {
+    if (this.hasPostImage()) {
+      Image(this.note.imageUrl)
+        .width('100%')
+        .height(220)
+        .objectFit(ImageFit.Cover)
+        .borderRadius(4)
+    }
   }
 
   @Builder

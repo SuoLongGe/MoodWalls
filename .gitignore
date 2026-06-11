@@ -23,6 +23,9 @@
 # 前端：后端 API 局域网地址
 /entry/src/main/ets/common/ApiConfig.local.ets
 
+# 用户上传的帖子配图
+/backend/uploads/
+
 # 环境变量与密钥
 .env
 .env.*

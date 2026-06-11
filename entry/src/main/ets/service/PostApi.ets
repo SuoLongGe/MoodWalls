@@ -1,3 +1,7 @@
+import { common } from '@kit.AbilityKit'
+import { ApiConfig } from '../common/ApiConfig'
+import { MediaUrl } from '../common/MediaUrl'
+import { PostUploadHelper } from '../common/PostUploadHelper'
 import { HttpClient } from './HttpClient'
 import { AuthSession } from '../common/AuthSession'
 import {
@@ -53,6 +57,7 @@ export interface CreatePostBody {
   text: string
   location: string
   zoneKey?: string
+  imageBase64?: string
 }
 
 export interface UpdateVisibilityBody {
@@ -114,6 +119,7 @@ export class PostApi {
       avatarKey: item.avatarKey !== undefined && item.avatarKey.length > 0
         ? item.avatarKey
         : (isMine ? AuthSession.getAvatarKey() : 'avatar_01'),
+      avatarUrl: PostApi.resolveAvatarUrl(item.avatarUrl, isMine),
       isMine: isMine,
       commentCount: item.commentCount !== undefined ? item.commentCount : 0,
       visibility: item.visibility !== undefined && item.visibility.length > 0 ? item.visibility : 'public',
@@ -123,9 +129,23 @@ export class PostApi {
       topReactions: PostApi.normalizeTopReactions(item.topReactions),
       reactionStats: PostApi.normalizeReactionStats(item.reactionStats),
       whisperCount: PostApi.toStatInt(item.whisperCount),
-      cloudCount: PostApi.toStatInt(item.cloudCount)
+      cloudCount: PostApi.toStatInt(item.cloudCount),
+      imageUrl: MediaUrl.resolve(item.imageUrl)
     }
     return result
+  }
+
+  private static resolveAvatarUrl(url?: string | null, isMine: boolean = false): string | undefined {
+    if (url !== undefined && url !== null && url.length > 0) {
+      return MediaUrl.resolve(url)
+    }
+    if (isMine) {
+      const mineUrl: string = AuthSession.getAvatarUrl()
+      if (mineUrl.length > 0) {
+        return MediaUrl.resolve(mineUrl)
+      }
+    }
+    return undefined
   }
 
   private static normalizeTopReactions(raw?: Array<TopReactionJson>): Array<TopReactionItem> {
@@ -254,8 +274,35 @@ export class PostApi {
       .then((item: NoteItemFromApi) => PostApi.normalizeNote(item))
   }
 
-  static createPost(body: CreatePostBody, token: string): Promise<PublishPostResponse> {
-    return HttpClient.post<PublishPostResponse>('/posts', body, token).then((res: PublishPostResponse) => {
+  static createPost(
+    body: CreatePostBody,
+    token: string,
+    imageUri?: string,
+    context?: common.UIAbilityContext
+  ): Promise<PublishPostResponse> {
+    let requestBody: CreatePostBody = body
+    const hasImage: boolean = imageUri !== undefined && imageUri.length > 0
+    if (hasImage) {
+      if (context === undefined) {
+        return Promise.reject(new Error('无法读取图片，请重试'))
+      }
+      try {
+        const imageBase64: string = PostUploadHelper.readImageBase64(context, imageUri as string)
+        requestBody = {
+          mood: body.mood,
+          text: body.text,
+          location: body.location,
+          zoneKey: body.zoneKey,
+          imageBase64: imageBase64
+        }
+      } catch (err) {
+        const message: string = err instanceof Error ? err.message : '图片读取失败'
+        return Promise.reject(new Error(message))
+      }
+    }
+
+    const timeoutMs: number = hasImage ? 90000 : 20000
+    return HttpClient.post<PublishPostResponse>('/posts', requestBody, token, timeoutMs).then((res: PublishPostResponse) => {
       const postRaw: NoteItemFromApi = res.post as NoteItemFromApi
       const result: PublishPostResponse = {
         post: PostApi.normalizeNote(postRaw),

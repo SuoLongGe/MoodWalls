@@ -5,7 +5,9 @@ public class ProfileOverviewDto {
     private Long id;
     private String nickname;
     private String phone;
+    private String email;
     private String avatarKey;
+    private String avatarUrl;
     private long postCount;
     private long totalLikes;
     private int streakDays;
@@ -37,12 +39,28 @@ public class ProfileOverviewDto {
         this.phone = phone;
     }
 
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
     public String getAvatarKey() {
         return avatarKey;
     }
 
     public void setAvatarKey(String avatarKey) {
         this.avatarKey = avatarKey;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 
     public long getPostCount() {

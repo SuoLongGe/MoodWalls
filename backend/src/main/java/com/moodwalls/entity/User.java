@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "users", uniqueConstraints = {
         @UniqueConstraint(name = "uk_users_phone", columnNames = "phone"),
+        @UniqueConstraint(name = "uk_users_email", columnNames = "email"),
         @UniqueConstraint(name = "uk_users_nickname", columnNames = "nickname")
 })
 public class User {
@@ -26,8 +27,11 @@ public class User {
     @Column(nullable = false, length = 64)
     private String nickname;
 
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private String phone;
+
+    @Column(length = 128)
+    private String email;
 
     @Column(name = "student_id", length = 32)
     private String studentId;
@@ -37,6 +41,9 @@ public class User {
 
     @Column(name = "avatar_key", length = 32)
     private String avatarKey = "avatar_01";
+
+    @Column(name = "avatar_url", length = 512)
+    private String avatarUrl;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -80,6 +87,14 @@ public class User {
         this.phone = phone;
     }
 
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
     public String getStudentId() {
         return studentId;
     }
@@ -102,6 +117,14 @@ public class User {
 
     public void setAvatarKey(String avatarKey) {
         this.avatarKey = avatarKey;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 
     public LocalDateTime getCreatedAt() {

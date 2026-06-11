@@ -15,6 +15,7 @@ public class PostSummaryDto {
     private String mood;
     private String moodLabel;
     private String text;
+    private String imageUrl;
     private String location;
     private String zoneKey;
     private int likes;
@@ -24,6 +25,7 @@ public class PostSummaryDto {
     private String createdAt;
     private String timeText;
     private String avatarKey;
+    private String avatarUrl;
     @JsonProperty("isMine")
     private boolean isMine;
     private int commentCount;
@@ -84,6 +86,14 @@ public class PostSummaryDto {
 
     public void setText(String text) {
         this.text = text;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     public String getLocation() {
@@ -148,6 +158,14 @@ public class PostSummaryDto {
 
     public void setAvatarKey(String avatarKey) {
         this.avatarKey = avatarKey;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 
     public boolean isMine() {

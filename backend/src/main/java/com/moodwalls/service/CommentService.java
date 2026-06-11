@@ -342,6 +342,7 @@ public class CommentService {
         User author = userMap.get(comment.getUserId());
         dto.setAuthorNickname(author != null ? author.getNickname() : "匿名用户");
         dto.setAuthorAvatarKey(author != null && author.getAvatarKey() != null ? author.getAvatarKey() : "avatar_01");
+        dto.setAuthorAvatarUrl(author != null ? author.getAvatarUrl() : null);
 
         if (comment.getReplyToUserId() != null) {
             User replyTo = userMap.get(comment.getReplyToUserId());
@@ -369,6 +370,7 @@ public class CommentService {
         User author = userMap.get(comment.getUserId());
         dto.setAuthorNickname(author != null ? author.getNickname() : "匿名用户");
         dto.setAuthorAvatarKey(author != null && author.getAvatarKey() != null ? author.getAvatarKey() : "avatar_01");
+        dto.setAuthorAvatarUrl(author != null ? author.getAvatarUrl() : null);
 
         if (comment.getReplyToUserId() != null) {
             User replyTo = userMap.get(comment.getReplyToUserId());

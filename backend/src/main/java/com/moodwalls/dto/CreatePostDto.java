@@ -6,6 +6,7 @@ public class CreatePostDto {
     private String text;
     private String location;
     private String zoneKey;
+    private String imageBase64;
 
     public String getMood() { return mood; }
     public void setMood(String mood) { this.mood = mood; }
@@ -18,4 +19,7 @@ public class CreatePostDto {
 
     public String getZoneKey() { return zoneKey; }
     public void setZoneKey(String zoneKey) { this.zoneKey = zoneKey; }
+
+    public String getImageBase64() { return imageBase64; }
+    public void setImageBase64(String imageBase64) { this.imageBase64 = imageBase64; }
 }

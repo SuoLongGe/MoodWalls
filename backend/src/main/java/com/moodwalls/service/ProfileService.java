@@ -42,16 +42,19 @@ public class ProfileService {
     private final PostRepository postRepository;
     private final UserDailyMoodRepository userDailyMoodRepository;
     private final CloudGiftService cloudGiftService;
+    private final PostImageStorageService postImageStorageService;
 
     public ProfileService(
             UserRepository userRepository,
             PostRepository postRepository,
             UserDailyMoodRepository userDailyMoodRepository,
-            CloudGiftService cloudGiftService) {
+            CloudGiftService cloudGiftService,
+            PostImageStorageService postImageStorageService) {
         this.userRepository = userRepository;
         this.postRepository = postRepository;
         this.userDailyMoodRepository = userDailyMoodRepository;
         this.cloudGiftService = cloudGiftService;
+        this.postImageStorageService = postImageStorageService;
     }
 
     public ProfileOverviewDto getOverview(Long userId) {
@@ -71,7 +74,9 @@ public class ProfileService {
         dto.setId(user.getId());
         dto.setNickname(user.getNickname());
         dto.setPhone(MoodHelper.maskPhone(user.getPhone()));
+        dto.setEmail(MoodHelper.maskEmail(user.getEmail()));
         dto.setAvatarKey(user.getAvatarKey() != null ? user.getAvatarKey() : "avatar_01");
+        dto.setAvatarUrl(user.getAvatarUrl());
         dto.setPostCount(postCount);
         dto.setTotalLikes(totalLikes);
         dto.setStreakDays(streakDays);
@@ -255,6 +260,7 @@ public class ProfileService {
         dto.setMood(post.getMood());
         dto.setMoodLabel(MoodHelper.labelOf(post.getMood()));
         dto.setText(post.getContent());
+        dto.setImageUrl(post.getImageUrl());
         dto.setLocation(post.getLocation());
         dto.setZoneKey(post.getZoneKey());
         dto.setLikes(post.getLikeCount() != null ? post.getLikeCount() : 0);
@@ -263,6 +269,7 @@ public class ProfileService {
         dto.setCreatedAt(post.getCreatedAt().toString());
         dto.setTimeText(MoodHelper.formatTimeText(post.getCreatedAt()));
         dto.setAvatarKey(user.getAvatarKey() != null ? user.getAvatarKey() : "avatar_01");
+        dto.setAvatarUrl(user.getAvatarUrl());
         dto.setMine(true);
         dto.setCommentCount(post.getCommentCount() != null ? post.getCommentCount() : 0);
         dto.setVisibility(post.getVisibility() != null && post.getVisibility() == 2 ? "private" : "public");

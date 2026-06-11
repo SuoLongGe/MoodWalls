@@ -4,8 +4,11 @@ import com.moodwalls.dto.ApiResponse;
 import com.moodwalls.dto.AuthResponse;
 import com.moodwalls.dto.CaptchaResponse;
 import com.moodwalls.dto.ChangePasswordRequest;
+import com.moodwalls.dto.EmailCodeResponse;
+import com.moodwalls.dto.EmailLoginRequest;
 import com.moodwalls.dto.LoginRequest;
 import com.moodwalls.dto.RegisterRequest;
+import com.moodwalls.dto.SendEmailCodeRequest;
 import com.moodwalls.dto.UpdateProfileRequest;
 import com.moodwalls.dto.UserProfile;
 import com.moodwalls.security.JwtAuthSupport;
@@ -43,12 +46,21 @@ public class AuthController {
     }
 
     /**
-     * 获取注册用验证码（服务端生成，前端展示 captchaText 供用户填写）
+     * 获取注册用验证码（旧版文本验证码，保留兼容）
      */
     @GetMapping("/captcha")
     public ApiResponse<CaptchaResponse> captcha() {
         CaptchaResponse response = authService.createCaptcha();
         return ApiResponse.ok(response);
+    }
+
+    /**
+     * 发送邮箱验证码（scene: register | login）
+     */
+    @PostMapping("/email/code")
+    public ApiResponse<EmailCodeResponse> sendEmailCode(@Valid @RequestBody SendEmailCodeRequest request) {
+        EmailCodeResponse response = authService.sendEmailCode(request);
+        return ApiResponse.ok("验证码已发送", response);
     }
 
     @PostMapping("/register")
@@ -60,6 +72,12 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
+        return ApiResponse.ok("登录成功", response);
+    }
+
+    @PostMapping("/login/email")
+    public ApiResponse<AuthResponse> loginByEmail(@Valid @RequestBody EmailLoginRequest request) {
+        AuthResponse response = authService.loginByEmail(request);
         return ApiResponse.ok("登录成功", response);
     }
 

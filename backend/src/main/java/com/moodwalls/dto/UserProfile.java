@@ -1,24 +1,30 @@
 package com.moodwalls.dto;
 
 import com.moodwalls.entity.User;
+import com.moodwalls.util.MoodHelper;
 
 public class UserProfile {
 
     private Long id;
     private String nickname;
     private String phone;
+    private String email;
     private String studentId;
     private String avatarKey;
+    private String avatarUrl;
 
     public UserProfile() {
     }
 
-    public UserProfile(Long id, String nickname, String phone, String studentId, String avatarKey) {
+    public UserProfile(Long id, String nickname, String phone, String email, String studentId,
+                       String avatarKey, String avatarUrl) {
         this.id = id;
         this.nickname = nickname;
         this.phone = phone;
+        this.email = email;
         this.studentId = studentId;
         this.avatarKey = avatarKey;
+        this.avatarUrl = avatarUrl;
     }
 
     public static UserProfile from(User user) {
@@ -29,17 +35,12 @@ public class UserProfile {
         return new UserProfile(
                 user.getId(),
                 user.getNickname(),
-                maskPhone(user.getPhone()),
+                MoodHelper.maskPhone(user.getPhone()),
+                MoodHelper.maskEmail(user.getEmail()),
                 user.getStudentId(),
-                key
+                key,
+                user.getAvatarUrl()
         );
-    }
-
-    private static String maskPhone(String phone) {
-        if (phone == null || phone.length() < 7) {
-            return phone;
-        }
-        return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
     }
 
     public Long getId() {
@@ -66,6 +67,14 @@ public class UserProfile {
         this.phone = phone;
     }
 
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
     public String getStudentId() {
         return studentId;
     }
@@ -80,5 +89,13 @@ public class UserProfile {
 
     public void setAvatarKey(String avatarKey) {
         this.avatarKey = avatarKey;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 }

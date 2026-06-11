@@ -1,7 +1,7 @@
 import { router } from '@kit.ArkUI'
 import { AppTheme } from '../common/AppTheme'
 import { AuthSession } from '../common/AuthSession'
-import { getAvatarResource } from '../common/AvatarResources'
+import { UserAvatar } from '../components/UserAvatar'
 import { NoteHelper } from '../common/NoteHelper'
 import { PostActionHelper } from '../common/PostActionHelper'
 import { UiHelper } from '../common/UiHelper'
@@ -349,11 +349,11 @@ struct PostDetailPage {
   buildCommentRow(item: CommentItem) {
     Column({ space: 8 }) {
       Row({ space: 10 }) {
-        Image(getAvatarResource(item.authorAvatarKey !== undefined ? item.authorAvatarKey : 'avatar_01'))
-          .width(32)
-          .height(32)
-          .borderRadius(16)
-          .objectFit(ImageFit.Cover)
+        UserAvatar({
+          avatarKey: item.authorAvatarKey !== undefined ? item.authorAvatarKey : 'avatar_01',
+          avatarUrl: item.authorAvatarUrl !== undefined ? item.authorAvatarUrl : '',
+          avatarSize: 32
+        })
 
         Column({ space: 4 }) {
           Row() {
@@ -433,11 +433,11 @@ struct PostDetailPage {
   @Builder
   buildReplyRow(parentId: number, reply: CommentReplyItem) {
     Row({ space: 8 }) {
-      Image(getAvatarResource(reply.authorAvatarKey !== undefined ? reply.authorAvatarKey : 'avatar_01'))
-        .width(26)
-        .height(26)
-        .borderRadius(13)
-        .objectFit(ImageFit.Cover)
+      UserAvatar({
+        avatarKey: reply.authorAvatarKey !== undefined ? reply.authorAvatarKey : 'avatar_01',
+        avatarUrl: reply.authorAvatarUrl !== undefined ? reply.authorAvatarUrl : '',
+        avatarSize: 26
+      })
 
       Column({ space: 4 }) {
         Row() {
