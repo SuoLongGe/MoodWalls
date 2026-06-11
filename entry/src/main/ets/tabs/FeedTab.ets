@@ -142,7 +142,7 @@ export struct FeedTab {
   build() {
     Refresh({ refreshing: this.isRefreshing }) {
       Scroll() {
-        Column({ space: 14 }) {
+        Column({ space: 0 }) {
           this.buildFilterChips()
           List() {
             ForEach(this.notes, (item: NoteItem) => {
@@ -172,7 +172,6 @@ export struct FeedTab {
                   }
                 })
               }
-              .padding({ bottom: 14 })
             }, (item: NoteItem) => `${item.id}-${this.refreshKey}`)
 
             if (this.hasMore) {
@@ -228,7 +227,7 @@ export struct FeedTab {
           }
           .width('100%')
           .listDirection(Axis.Vertical)
-          .divider({ strokeWidth: 0 })
+          .divider({ strokeWidth: 8, color: '#F4F4F4', startMargin: 0, endMargin: 0 })
           .sticky(StickyStyle.None)
           .onScrollIndex((startIndex: number) => {
             const threshold = this.notes.length - 3
@@ -245,7 +244,7 @@ export struct FeedTab {
     })
     .width('100%')
     .layoutWeight(1)
-    .padding({ left: 16, right: 16, top: 10, bottom: 18 })
+    .padding({ top: 0, bottom: 0 })
   }
 
   @Builder
@@ -262,10 +261,13 @@ export struct FeedTab {
         this.buildFilterChip('angry', '生气')
         this.buildFilterChip('lonely', '孤单')
       }
-      .padding({ top: 6, bottom: 6 })
+      .padding({ left: 16, right: 16, top: 8, bottom: 8 })
     }
     .scrollable(ScrollDirection.Horizontal)
     .scrollBar(BarState.Off)
+    .width('100%')
+    .backgroundColor(AppTheme.CARD)
+    .border({ width: { bottom: 0.5 }, color: '#EEEEEE' })
   }
 
   @Builder
@@ -273,15 +275,10 @@ export struct FeedTab {
     Text(label)
       .fontSize(12)
       .fontWeight(this.filterMood === key ? FontWeight.Bold : FontWeight.Medium)
-      .fontColor(this.filterMood === key ? Color.White : AppTheme.TEXT_HINT)
-      .padding({ left: 14, right: 14, top: 9, bottom: 9 })
-      .backgroundColor(this.filterMood === key ? AppTheme.PRIMARY : AppTheme.CARD)
-      .borderRadius(AppTheme.RADIUS_PILL)
-      .shadow({
-        radius: this.filterMood === key ? 0 : 6,
-        color: AppTheme.SHADOW_LIGHT,
-        offsetY: 2
-      })
+      .fontColor(this.filterMood === key ? Color.White : '#666666')
+      .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+      .backgroundColor(this.filterMood === key ? '#333333' : '#F0F0F0')
+      .borderRadius(4)
       .animation({ duration: AppTheme.TAB_ENTER_MS, curve: Curve.Smooth })
       .onClick(() => {
         if (this.filterMood !== key) {

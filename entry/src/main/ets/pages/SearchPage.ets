@@ -389,9 +389,10 @@ struct SearchPage {
         .width('100%')
       } else {
         Scroll() {
-          Column({ space: 12 }) {
+          Column({ space: 0 }) {
             ForEach(this.results, (item: NoteItem) => {
-              PostCard({
+              Column() {
+                PostCard({
                 note: item,
                 onReact: (noteId: number, reactionType: string) => this.handleReact(noteId, reactionType),
                 onCancelReact: (noteId: number) => this.handleCancelReact(noteId),
@@ -400,11 +401,16 @@ struct SearchPage {
                 onMore: (note: NoteItem) => this.showPostActions(note),
                 onLongPress: (note: NoteItem) => this.showPostActions(note),
                 onOpen: (note: NoteItem) => UiHelper.pushToPostDetail(note.id)
-              })
+                })
+                Row()
+                  .width('100%')
+                  .height(8)
+                  .backgroundColor('#F4F4F4')
+              }
             }, (item: NoteItem) => `${item.id}-${this.refreshKey}`)
           }
           .width('100%')
-          .padding({ left: 16, right: 16, bottom: 24 })
+          .padding({ bottom: 24 })
         }
         .layoutWeight(1)
         .scrollBar(BarState.Off)

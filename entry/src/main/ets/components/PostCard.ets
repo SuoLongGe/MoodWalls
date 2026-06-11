@@ -5,7 +5,7 @@ import { NoteItem } from '../model/MoodWallTypes'
 import { getAvatarResource } from '../common/AvatarResources'
 import { AuthSession } from '../common/AuthSession'
 import { PostApi } from '../service/PostApi'
-import { CloudGiftAnimation } from './CloudGiftAnimation'
+import { SunGiftAnimation } from './SunGiftAnimation'
 import { ReactionBar } from './ReactionBar'
 
 @Component
@@ -19,8 +19,8 @@ export struct PostCard {
   onMore: (note: NoteItem) => void = () => {}
   onLongPress: (note: NoteItem) => void = () => {}
   onOpen: (note: NoteItem) => void = () => {}
-  @State cloudVisible: boolean = false
-  @State cloudSending: boolean = false
+  @State sunVisible: boolean = false
+  @State sunSending: boolean = false
 
   private isMine(): boolean {
     if (this.note.isMine === true || this.note.canDelete === true) {
@@ -62,7 +62,7 @@ export struct PostCard {
   }
 
   private trySendCloud(): void {
-    if (this.isMine() || this.cloudVisible || this.cloudSending) {
+    if (this.isMine() || this.sunVisible || this.sunSending) {
       return
     }
     if (!CloudGiftThrottle.canSend(this.note.id)) {
@@ -74,36 +74,36 @@ export struct PostCard {
       UiHelper.showToast('请先登录')
       return
     }
-    this.cloudSending = true
+    this.sunSending = true
     PostApi.sendCloud(this.note.id, token)
       .then(() => {
         CloudGiftThrottle.markSent(this.note.id)
-        this.cloudVisible = true
-        UiHelper.showToast('一朵云送给了 TA')
+        this.sunVisible = true
+        UiHelper.showToast('一个小太阳送给了 TA')
       })
       .catch((err: Error) => {
-        UiHelper.showToast(err.message || '送云失败，请稍后重试')
+        UiHelper.showToast(err.message || '赠送失败，请稍后重试')
       })
       .finally(() => {
-        this.cloudSending = false
+        this.sunSending = false
       })
   }
 
   build() {
     Stack({ alignContent: Alignment.Center }) {
-    Stack({ alignContent: Alignment.TopEnd }) {
-      Column({ space: 10 }) {
-        Column({ space: 10 }) {
+      Column({ space: 0 }) {
+        Column({ space: 8 }) {
           this.buildHeader()
+          this.buildBody()
           if (this.note.location.length > 0) {
             this.buildLocation()
           }
-          this.buildBody()
           if (this.isMine() && this.cloudCount() > 0) {
-            this.buildCloudReceivedBadge()
+            this.buildSunReceivedHint()
           }
         }
         .width('100%')
+        .padding({ left: 16, right: 16, top: 12, bottom: 8 })
         .onClick(() => {
           this.onOpen(this.note)
         })
@@ -111,24 +111,7 @@ export struct PostCard {
         this.buildActionBar()
       }
       .width('100%')
-      .padding({
-        left: this.isMine() ? 13 : 16,
-        right: 16,
-        top: 14,
-        bottom: 14
-      })
-      .backgroundColor(this.isMine() ? AppTheme.CARD_MINE : AppTheme.CARD)
-      .borderRadius(AppTheme.RADIUS_MD)
-      .border({
-        width: { left: this.isMine() ? 3 : 1, top: 1, right: 1, bottom: 1 },
-        color: this.isMine() ? AppTheme.ACCENT : AppTheme.OUTLINE
-      })
-      .shadow({
-        radius: 14,
-        color: AppTheme.SHADOW,
-        offsetX: 0,
-        offsetY: 4
-      })
+      .backgroundColor(AppTheme.CARD)
       .gesture(
         LongPressGesture({ repeat: false })
           .onAction(() => {
@@ -140,27 +123,10 @@ export struct PostCard {
           })
       )
 
-      if (this.isMine()) {
-        Text('···')
-          .fontSize(20)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(AppTheme.PRIMARY)
-          .width(36)
-          .height(36)
-          .textAlign(TextAlign.Center)
-          .margin({ top: 6, right: 8 })
-          .onClick(() => {
-            this.onMore(this.note)
-          })
-      }
-    }
-    .width('100%')
-    .alignContent(Alignment.TopEnd)
-
-      if (this.cloudVisible) {
-        CloudGiftAnimation({
+      if (this.sunVisible) {
+        SunGiftAnimation({
           onFinish: () => {
-            this.cloudVisible = false
+            this.sunVisible = false
           }
         })
       }
@@ -172,36 +138,55 @@ export struct PostCard {
   buildHeader() {
     Row({ space: 10 }) {
       Image(getAvatarResource(this.avatarKey()))
-        .width(36)
-        .height(36)
-        .borderRadius(18)
+        .width(40)
+        .height(40)
+        .borderRadius(20)
         .objectFit(ImageFit.Cover)
 
-      Column({ space: 4 }) {
+      Column({ space: 3 }) {
         Row({ space: 6 }) {
           Text(this.displayName())
-            .fontSize(14)
+            .fontSize(15)
             .fontWeight(FontWeight.Bold)
             .fontColor(AppTheme.TEXT_TITLE)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .layoutWeight(1)
+
+          Text(this.note.moodLabel)
+            .fontSize(10)
+            .fontColor('#6CB1F0')
+            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+            .backgroundColor('#F0F7FF')
+
+          if (this.isMine()) {
+            Text('我的')
+              .fontSize(10)
+              .fontColor('#73C088')
+              .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+              .backgroundColor('#F0FAF3')
+          }
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
 
-        Row({ space: 8 }) {
-          Text(this.note.timeText)
-            .fontSize(11)
-            .fontColor('#95A19F')
-          Text(this.note.moodLabel)
-            .fontSize(11)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(this.note.color)
-        }
+        Text(`${this.note.timeText} · 心墙`)
+          .fontSize(11)
+          .fontColor('#999999')
       }
       .layoutWeight(1)
       .alignItems(HorizontalAlign.Start)
+
+      if (this.isMine()) {
+        Text('···')
+          .fontSize(18)
+          .fontColor('#BBBBBB')
+          .width(28)
+          .height(28)
+          .textAlign(TextAlign.Center)
+          .onClick(() => {
+            this.onMore(this.note)
+          })
+      }
     }
     .width('100%')
     .alignItems(VerticalAlign.Top)
@@ -209,73 +194,66 @@ export struct PostCard {
 
   @Builder
   buildLocation() {
-    Text(`📍 ${this.note.location}`)
+    Text(this.note.location)
       .fontSize(12)
-      .fontColor('#7C8A87')
+      .fontColor('#999999')
       .width('100%')
   }
 
   @Builder
   buildBody() {
     Text(this.note.text)
-      .fontSize(15)
-      .lineHeight(22)
+      .fontSize(16)
+      .lineHeight(24)
       .fontColor(AppTheme.TEXT_TITLE)
       .width('100%')
   }
 
   @Builder
-  buildCloudReceivedBadge() {
-    Row({ space: 6 }) {
-      Text('☁️')
-        .fontSize(14)
-      Text(`收到 ${this.cloudCount()} 朵云`)
-        .fontSize(12)
-        .fontWeight(FontWeight.Medium)
-        .fontColor('#6CB1F0')
-    }
-    .width('100%')
-    .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-    .backgroundColor('#F0F8FF')
-    .borderRadius(AppTheme.RADIUS_MD)
+  buildSunReceivedHint() {
+    Text(`☀️ 收到 ${this.cloudCount()} 个小太阳`)
+      .fontSize(12)
+      .fontColor('#E8A317')
+      .width('100%')
   }
 
   @Builder
   buildActionBar() {
-    Column({ space: 8 }) {
-      ReactionBar({
-        note: this.note,
-        compact: !this.reactionExpanded,
-        onReact: (noteId: number, reactionType: string) => {
-          this.onReact(noteId, reactionType)
-        },
-        onCancelReact: (noteId: number) => {
-          this.onCancelReact(noteId)
-        }
-      })
-      Row() {
+    Row() {
+      Blank()
+      Row({ space: 18 }) {
+        ReactionBar({
+          note: this.note,
+          inline: true,
+          showAllOptions: this.reactionExpanded,
+          onReact: (noteId: number, reactionType: string) => {
+            this.onReact(noteId, reactionType)
+          },
+          onCancelReact: (noteId: number) => {
+            this.onCancelReact(noteId)
+          }
+        })
         this.buildCommentAction()
         this.buildSupportAction()
       }
-      .width('100%')
-      .justifyContent(FlexAlign.SpaceBetween)
+      .alignItems(VerticalAlign.Center)
     }
     .width('100%')
-    .padding({ top: 4 })
+    .padding({ left: 16, right: 16, top: 4, bottom: 12 })
   }
 
   @Builder
   buildCommentAction() {
     Row({ space: 4 }) {
       Text('💬')
-        .fontSize(16)
-      Text(`${this.commentCount()}`)
-        .fontSize(12)
-        .fontColor('#7D8A88')
+        .fontSize(17)
+        .fontColor('#999999')
+      if (this.commentCount() > 0) {
+        Text(`${this.commentCount()}`)
+          .fontSize(12)
+          .fontColor('#999999')
+      }
     }
-    .padding({ left: 10, right: 10, top: 8, bottom: 8 })
-    .backgroundColor(AppTheme.SURFACE)
-    .borderRadius(AppTheme.RADIUS_MD)
     .onClick(() => {
       this.onComment(this.note)
     })
@@ -283,19 +261,11 @@ export struct PostCard {
 
   @Builder
   buildSupportAction() {
-    Row({ space: 4 }) {
-      Text('🤝')
-        .fontSize(16)
-      Text('接住')
-        .fontSize(12)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(AppTheme.PRIMARY)
-    }
-    .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-    .backgroundColor('#F3F8F6')
-    .borderRadius(AppTheme.RADIUS_MD)
-    .onClick(() => {
-      this.onSupport(this.note)
-    })
+    Text('接住')
+      .fontSize(13)
+      .fontColor(AppTheme.PRIMARY)
+      .onClick(() => {
+        this.onSupport(this.note)
+      })
   }
 }

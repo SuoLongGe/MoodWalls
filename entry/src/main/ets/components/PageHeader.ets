@@ -43,13 +43,8 @@ export struct PageHeader {
       .justifyContent(FlexAlign.End)
     }
     .width('100%')
-    .padding({ left: 4, right: 16, top: 6, bottom: 10 })
-    .backgroundColor(AppTheme.HEADER_BG)
-    .shadow({
-      radius: 10,
-      color: AppTheme.SHADOW_LIGHT,
-      offsetX: 0,
-      offsetY: 2
-    })
+    .padding({ left: 4, right: 16, top: 4, bottom: 8 })
+    .backgroundColor(AppTheme.CARD)
+    .border({ width: { bottom: 0.5 }, color: '#EEEEEE' })
   }
 }

@@ -216,9 +216,10 @@ struct MyPostsPage {
         .width('100%')
       } else {
         Scroll() {
-          Column({ space: 12 }) {
+          Column({ space: 0 }) {
             ForEach(this.posts, (item: PostSummary) => {
-              PostCard({
+              Column() {
+                PostCard({
                 note: this.toNoteItem(item),
                 onReact: () => {
                   UiHelper.showToast('请在心墙页表达心意')
@@ -239,7 +240,12 @@ struct MyPostsPage {
                 onLongPress: (note: NoteItem) => {
                   this.showPostActions(note)
                 }
-              })
+                })
+                Row()
+                  .width('100%')
+                  .height(8)
+                  .backgroundColor('#F4F4F4')
+              }
             }, (item: PostSummary) => `${item.id}-${this.refreshKey}`)
 
             if (this.hasMore) {
@@ -262,7 +268,7 @@ struct MyPostsPage {
             }
           }
           .width('100%')
-          .padding({ left: 16, right: 16, top: 8, bottom: 24 })
+          .padding({ top: 0, bottom: 24 })
         }
         .layoutWeight(1)
         .scrollBar(BarState.Off)

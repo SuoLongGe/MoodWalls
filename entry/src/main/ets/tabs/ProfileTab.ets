@@ -198,14 +198,22 @@ export struct ProfileTab {
   }
 
   @Builder
+  buildSectionDivider() {
+    Row()
+      .width('100%')
+      .height(8)
+      .backgroundColor('#F4F4F4')
+  }
+
+  @Builder
   buildMoodViewChip(tab: MoodViewTab, label: string) {
     Text(label)
       .fontSize(12)
       .fontWeight(this.moodViewTab === tab ? FontWeight.Bold : FontWeight.Medium)
-      .fontColor(this.moodViewTab === tab ? AppTheme.PRIMARY : AppTheme.TEXT_SECONDARY)
+      .fontColor(this.moodViewTab === tab ? Color.White : '#666666')
       .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-      .backgroundColor(this.moodViewTab === tab ? AppTheme.PRIMARY_SOFT : AppTheme.SURFACE)
-      .borderRadius(14)
+      .backgroundColor(this.moodViewTab === tab ? '#333333' : '#F0F0F0')
+      .borderRadius(4)
       .onClick(() => {
         this.selectMoodViewTab(tab)
       })
@@ -216,10 +224,10 @@ export struct ProfileTab {
     Text(this.periodLabel(period))
       .fontSize(12)
       .fontWeight(this.moodPeriod === period ? FontWeight.Bold : FontWeight.Medium)
-      .fontColor(this.moodPeriod === period ? AppTheme.PRIMARY : AppTheme.TEXT_SECONDARY)
+      .fontColor(this.moodPeriod === period ? Color.White : '#666666')
       .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-      .backgroundColor(this.moodPeriod === period ? AppTheme.PRIMARY_SOFT : AppTheme.SURFACE)
-      .borderRadius(14)
+      .backgroundColor(this.moodPeriod === period ? '#333333' : '#F0F0F0')
+      .borderRadius(4)
       .onClick(() => {
         this.selectMoodPeriod(period)
       })
@@ -472,22 +480,19 @@ export struct ProfileTab {
       Stack({ alignContent: Alignment.Start }) {
         Row()
           .width('100%')
-          .height(28)
-          .backgroundColor(AppTheme.SURFACE)
-          .borderRadius(14)
-        Row() {
-          Text(`${percent}%`)
-            .fontSize(11)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(AppTheme.TEXT_PRIMARY)
-        }
-        .height(28)
-        .width(`${percent}%`)
-        .padding({ left: 10 })
-        .backgroundColor(color)
-        .borderRadius(14)
+          .height(8)
+          .backgroundColor('#EEEEEE')
+        Row()
+          .height(8)
+          .width(`${percent}%`)
+          .backgroundColor(color)
       }
       .layoutWeight(1)
+      Text(`${percent}%`)
+        .fontSize(11)
+        .fontColor(AppTheme.TEXT_HINT)
+        .width(36)
+        .textAlign(TextAlign.End)
     }
     .width('100%')
   }
@@ -641,7 +646,6 @@ export struct ProfileTab {
     }
     .padding({ left: 12, right: 12, top: 8, bottom: 8 })
     .backgroundColor('#F3F6F5')
-    .borderRadius(16)
     .onClick(() => {
       UiHelper.pushTo('pages/NotificationPage')
     })
@@ -649,7 +653,7 @@ export struct ProfileTab {
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
-      Column({ space: 16 }) {
+      Column({ space: 0 }) {
         Column({ space: 12 }) {
           Row({ space: 12 }) {
             Image(getAvatarResource(this.userAvatarKey))
@@ -680,9 +684,8 @@ export struct ProfileTab {
           Text(`心情气候：${this.moodClimate}`)
             .fontSize(12)
             .fontColor('#2F7C49')
-            .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+            .padding({ left: 10, right: 10, top: 4, bottom: 4 })
             .backgroundColor('#E8F6EC')
-            .borderRadius(18)
 
           Row({ space: 8 }) {
             Column({ space: 4 }) {
@@ -722,9 +725,10 @@ export struct ProfileTab {
           .padding({ top: 4 })
         }
         .width('100%')
-        .padding(20)
+        .padding(16)
         .backgroundColor(AppTheme.CARD)
-        .borderRadius(24)
+
+        this.buildSectionDivider()
 
         InspirationCard({
           loading: this.inspirationLoading,
@@ -737,22 +741,25 @@ export struct ProfileTab {
           }
         })
 
+        this.buildSectionDivider()
+
         Column({ space: 0 }) {
           this.buildSettingRow('编辑个人信息', () => this.openEditProfile())
-          Divider().color('#F0F4F8')
+          Divider().color('#F0F0F0')
           this.buildSettingRow('我的帖子', () => UiHelper.pushTo('pages/MyPostsPage'))
-          Divider().color('#F0F4F8')
+          Divider().color('#F0F0F0')
           this.buildSettingRow(
             this.themeMode === 'dark' ? '深色模式（已开启）' : '深色模式',
             () => this.toggleTheme()
           )
-          Divider().color('#F0F4F8')
+          Divider().color('#F0F0F0')
           this.buildSettingRow('退出登录', () => this.handleLogout())
         }
         .width('100%')
-        .padding({ left: 18, right: 18 })
+        .padding({ left: 16, right: 16 })
         .backgroundColor(AppTheme.CARD)
-        .borderRadius(24)
+
+        this.buildSectionDivider()
 
         Column({ space: 12 }) {
           Row() {
@@ -796,9 +803,10 @@ export struct ProfileTab {
           .width('100%')
         }
         .width('100%')
-        .padding(18)
-        .backgroundColor('#FFFFFF')
-        .borderRadius(24)
+        .padding(16)
+        .backgroundColor(AppTheme.CARD)
+
+        this.buildSectionDivider()
 
         Column({ space: 12 }) {
           Row({ space: 10 }) {
@@ -876,10 +884,11 @@ export struct ProfileTab {
             .onClick(() => this.openWeeklyReport())
         }
         .width('100%')
-        .padding(18)
-        .backgroundColor('#FFFFFF')
-        .borderRadius(24)
+        .padding(16)
+        .backgroundColor(AppTheme.CARD)
       }
+      .width('100%')
+      .backgroundColor('#F4F4F4')
 
       if (this.showEditProfile) {
         Column()

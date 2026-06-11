@@ -117,7 +117,8 @@ export struct MoodWallHeader {
       .alignItems(VerticalAlign.Center)
     }
     .width('100%')
-    .padding({ left: 18, right: 18, top: 18, bottom: 14 })
-    .backgroundColor(AppTheme.HEADER_BG)
+    .padding({ left: 16, right: 16, top: 14, bottom: 12 })
+    .backgroundColor(AppTheme.CARD)
+    .border({ width: { bottom: 0.5 }, color: '#EEEEEE' })
   }
 }

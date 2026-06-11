@@ -91,6 +91,8 @@ struct PostDetailPage {
         this.loading = false
         if (this.focusComments) {
           this.pendingCommentScroll = true
+        } else {
+          this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
         }
       })
   }
@@ -367,7 +369,9 @@ struct PostDetailPage {
             if (this.isWhisperComment(item)) {
               Text('悄悄话')
                 .fontSize(10)
-                .fontColor('#8B7AD6')
+                .fontColor('#C9A227')
+                .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+                .backgroundColor('#FFF0C2')
             }
             Text(item.timeText)
               .fontSize(11)
@@ -417,9 +421,13 @@ struct PostDetailPage {
       }
     }
     .width('100%')
-    .padding({ top: 10, bottom: 10 })
-    .backgroundColor(this.isWhisperComment(item) ? '#F5F0FF' : Color.Transparent)
-    .borderRadius(12)
+    .padding({
+      left: 16,
+      right: 16,
+      top: 12,
+      bottom: 12
+    })
+    .backgroundColor(this.isWhisperComment(item) ? '#F5F0FF' : AppTheme.CARD)
   }
 
   @Builder
@@ -532,10 +540,9 @@ struct PostDetailPage {
         .width('100%')
       } else {
         Scroll(this.scroller) {
-          Column({ space: 12 }) {
+          Column({ space: 0 }) {
             PostCard({
               note: this.post,
-              reactionExpanded: true,
               onReact: (noteId: number, reactionType: string) => {
                 this.handleReact(noteId, reactionType)
               },
@@ -555,16 +562,20 @@ struct PostDetailPage {
               onOpen: () => {}
             })
 
+            Row()
+              .width('100%')
+              .height(8)
+              .backgroundColor('#F4F4F4')
+
             if (this.isPostAuthor() && this.whisperCount > 0) {
               Row() {
-                Text(`收到了 ${this.whisperCount} 条悄悄话`)
+                Text(`🔒 收到了 ${this.whisperCount} 条悄悄话`)
                   .fontSize(13)
                   .fontColor('#8B7AD6')
               }
               .width('100%')
-              .padding({ left: 12, right: 12, top: 10, bottom: 10 })
+              .padding({ left: 16, right: 16, top: 12, bottom: 12 })
               .backgroundColor('#F5F0FF')
-              .borderRadius(12)
             }
 
             Row() {
@@ -574,7 +585,8 @@ struct PostDetailPage {
                 .fontColor('#25332F')
             }
             .width('100%')
-            .padding({ left: 4, right: 4 })
+            .padding({ left: 16, right: 16, top: 12, bottom: 8 })
+            .backgroundColor(AppTheme.CARD)
             .onAreaChange((_oldValue: Area, newValue: Area) => {
               const y: number = newValue.position.y as number
               this.tryScrollToComments(y)
@@ -588,20 +600,27 @@ struct PostDetailPage {
                 .textAlign(TextAlign.Center)
                 .padding({ top: 20, bottom: 20 })
             } else {
-              Column() {
+              Column({ space: 0 }) {
                 ForEach(this.comments, (item: CommentItem) => {
-                  this.buildCommentRow(item)
+                  Column({ space: 0 }) {
+                    this.buildCommentRow(item)
+                    Row()
+                      .width('100%')
+                      .height(8)
+                      .backgroundColor('#F4F4F4')
+                  }
                 }, (item: CommentItem) => `${item.id}-${this.listRefreshKey}`)
               }
               .width('100%')
-              .padding({ left: 4, right: 4, bottom: 16 })
+              .padding({ bottom: 8 })
             }
           }
           .width('100%')
-          .padding({ left: 16, right: 16, top: 8, bottom: 16 })
+          .padding({ bottom: 16 })
         }
         .layoutWeight(1)
         .scrollBar(BarState.Off)
+        .align(Alignment.Top)
 
         Column({ space: 8 }) {
           if (!this.isPostAuthor()) {
@@ -634,10 +653,11 @@ struct PostDetailPage {
               text: this.draftText
             })
               .layoutWeight(1)
-              .height(72)
+              .height(40)
               .fontSize(14)
               .backgroundColor('#FFFFFF')
-              .borderRadius(12)
+              .borderRadius(4)
+              .padding({ top: 8, bottom: 8 })
               .onChange((value: string) => {
                 this.draftText = value
               })
@@ -646,13 +666,14 @@ struct PostDetailPage {
               .fontSize(13)
               .fontColor(Color.White)
               .backgroundColor('#31534A')
-              .borderRadius(18)
+              .borderRadius(4)
+              .width(64)
               .height(40)
               .enabled(!this.sending)
               .onClick(() => this.sendComment())
           }
           .width('100%')
-          .alignItems(VerticalAlign.Bottom)
+          .alignItems(VerticalAlign.Center)
         }
         .width('100%')
         .padding({ left: 16, right: 16, top: 10, bottom: 16 })

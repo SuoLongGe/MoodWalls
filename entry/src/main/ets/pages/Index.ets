@@ -447,7 +447,7 @@ struct Index {
                 .padding({ left: 16, right: 16, top: 10, bottom: 18 })
             } else {
               Scroll() {
-                Column({ space: 16 }) {
+                Column({ space: this.currentTab === 3 ? 0 : 16 }) {
                   if (this.currentTab === 2) {
                     PostTab({
                       selectedMoodKey: $selectedMoodKey,
@@ -473,10 +473,10 @@ struct Index {
                   }
                 }
                 .padding({
-                  left: 16,
-                  right: 16,
-                  top: this.currentTab === 3 ? 12 : 10,
-                  bottom: 18
+                  left: this.currentTab === 3 ? 0 : 16,
+                  right: this.currentTab === 3 ? 0 : 16,
+                  top: this.currentTab === 3 ? 0 : 10,
+                  bottom: this.currentTab === 3 ? 0 : 18
                 })
                 .width('100%')
               }
