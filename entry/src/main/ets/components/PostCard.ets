@@ -1,17 +1,26 @@
 import { AppTheme } from '../common/AppTheme'
+import { CloudGiftThrottle } from '../common/CloudGiftThrottle'
+import { UiHelper } from '../common/UiHelper'
 import { NoteItem } from '../model/MoodWallTypes'
 import { getAvatarResource } from '../common/AvatarResources'
 import { AuthSession } from '../common/AuthSession'
+import { PostApi } from '../service/PostApi'
+import { CloudGiftAnimation } from './CloudGiftAnimation'
+import { ReactionBar } from './ReactionBar'
 
 @Component
 export struct PostCard {
   @Prop note: NoteItem
-  onLike: (noteId: number) => void = () => {}
+  @Prop reactionExpanded: boolean = false
+  onReact: (noteId: number, reactionType: string) => void = () => {}
+  onCancelReact: (noteId: number) => void = () => {}
   onSupport: (note: NoteItem) => void = () => {}
   onComment: (note: NoteItem) => void = () => {}
   onMore: (note: NoteItem) => void = () => {}
   onLongPress: (note: NoteItem) => void = () => {}
   onOpen: (note: NoteItem) => void = () => {}
+  @State cloudVisible: boolean = false
+  @State cloudSending: boolean = false
 
   private isMine(): boolean {
     if (this.note.isMine === true || this.note.canDelete === true) {
@@ -48,7 +57,40 @@ export struct PostCard {
     return this.note.commentCount !== undefined ? this.note.commentCount : 0
   }
 
+  private cloudCount(): number {
+    return this.note.cloudCount !== undefined ? this.note.cloudCount : 0
+  }
+
+  private trySendCloud(): void {
+    if (this.isMine() || this.cloudVisible || this.cloudSending) {
+      return
+    }
+    if (!CloudGiftThrottle.canSend(this.note.id)) {
+      UiHelper.showToast('稍后再送吧')
+      return
+    }
+    const token: string = AuthSession.getToken()
+    if (token.length === 0) {
+      UiHelper.showToast('请先登录')
+      return
+    }
+    this.cloudSending = true
+    PostApi.sendCloud(this.note.id, token)
+      .then(() => {
+        CloudGiftThrottle.markSent(this.note.id)
+        this.cloudVisible = true
+        UiHelper.showToast('一朵云送给了 TA')
+      })
+      .catch((err: Error) => {
+        UiHelper.showToast(err.message || '送云失败，请稍后重试')
+      })
+      .finally(() => {
+        this.cloudSending = false
+      })
+  }
+
   build() {
+    Stack({ alignContent: Alignment.Center }) {
     Stack({ alignContent: Alignment.TopEnd }) {
       Column({ space: 10 }) {
         Column({ space: 10 }) {
@@ -57,6 +99,9 @@ export struct PostCard {
             this.buildLocation()
           }
           this.buildBody()
+          if (this.isMine() && this.cloudCount() > 0) {
+            this.buildCloudReceivedBadge()
+          }
         }
         .width('100%')
         .onClick(() => {
@@ -89,6 +134,8 @@ export struct PostCard {
           .onAction(() => {
             if (this.isMine()) {
               this.onLongPress(this.note)
+            } else {
+              this.trySendCloud()
             }
           })
       )
@@ -109,6 +156,16 @@ export struct PostCard {
     }
     .width('100%')
     .alignContent(Alignment.TopEnd)
+
+      if (this.cloudVisible) {
+        CloudGiftAnimation({
+          onFinish: () => {
+            this.cloudVisible = false
+          }
+        })
+      }
+    }
+    .width('100%')
   }
 
   @Builder
@@ -168,33 +225,43 @@ export struct PostCard {
   }
 
   @Builder
-  buildActionBar() {
-    Row() {
-      this.buildLikeAction()
-      this.buildCommentAction()
-      this.buildSupportAction()
+  buildCloudReceivedBadge() {
+    Row({ space: 6 }) {
+      Text('☁️')
+        .fontSize(14)
+      Text(`收到 ${this.cloudCount()} 朵云`)
+        .fontSize(12)
+        .fontWeight(FontWeight.Medium)
+        .fontColor('#6CB1F0')
     }
     .width('100%')
-    .justifyContent(FlexAlign.SpaceBetween)
-    .padding({ top: 4 })
+    .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+    .backgroundColor('#F0F8FF')
+    .borderRadius(AppTheme.RADIUS_MD)
   }
 
   @Builder
-  buildLikeAction() {
-    Row({ space: 4 }) {
-      Text(this.note.liked === true ? '❤' : '🤍')
-        .fontSize(16)
-        .fontColor(this.note.liked === true ? AppTheme.LIKE : AppTheme.TEXT_MUTED)
-      Text(`${this.note.likes}`)
-        .fontSize(12)
-        .fontColor(this.note.liked === true ? AppTheme.LIKE : AppTheme.TEXT_HINT)
+  buildActionBar() {
+    Column({ space: 8 }) {
+      ReactionBar({
+        note: this.note,
+        compact: !this.reactionExpanded,
+        onReact: (noteId: number, reactionType: string) => {
+          this.onReact(noteId, reactionType)
+        },
+        onCancelReact: (noteId: number) => {
+          this.onCancelReact(noteId)
+        }
+      })
+      Row() {
+        this.buildCommentAction()
+        this.buildSupportAction()
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.SpaceBetween)
     }
-    .padding({ left: 10, right: 10, top: 8, bottom: 8 })
-    .backgroundColor(this.note.liked === true ? '#FFF0F0' : AppTheme.SURFACE)
-    .borderRadius(AppTheme.RADIUS_MD)
-    .onClick(() => {
-      this.onLike(this.note.id)
-    })
+    .width('100%')
+    .padding({ top: 4 })
   }
 
   @Builder

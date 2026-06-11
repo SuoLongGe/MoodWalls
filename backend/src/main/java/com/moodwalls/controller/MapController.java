@@ -1,7 +1,9 @@
 package com.moodwalls.controller;
 
 import com.moodwalls.dto.ApiResponse;
+import com.moodwalls.dto.ZoneStoryResponseDto;
 import com.moodwalls.entity.CampusZone;
+import com.moodwalls.service.MapStoryService;
 import com.moodwalls.entity.Post;
 import com.moodwalls.entity.User;
 import com.moodwalls.repository.CampusZoneRepository;
@@ -27,13 +29,21 @@ public class MapController {
     private final CampusZoneRepository campusZoneRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final MapStoryService mapStoryService;
 
     public MapController(CampusZoneRepository campusZoneRepository,
                          PostRepository postRepository,
-                         UserRepository userRepository) {
+                         UserRepository userRepository,
+                         MapStoryService mapStoryService) {
         this.campusZoneRepository = campusZoneRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
+        this.mapStoryService = mapStoryService;
+    }
+
+    @GetMapping("/zones/{key}/story")
+    public ApiResponse<ZoneStoryResponseDto> getZoneStory(@PathVariable("key") String key) {
+        return ApiResponse.ok(mapStoryService.buildZoneStory(key));
     }
 
     @GetMapping("/zones")

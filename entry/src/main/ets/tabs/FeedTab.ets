@@ -1,5 +1,5 @@
 import { AppTheme } from '../common/AppTheme'
-import { NoteItem } from '../model/MoodWallTypes'
+import { NoteItem, ReactionResponse } from '../model/MoodWallTypes'
 import { PostApi } from '../service/PostApi'
 import { AuthSession } from '../common/AuthSession'
 import { UiHelper } from '../common/UiHelper'
@@ -20,11 +20,11 @@ export struct FeedTab {
   onRefresh: () => void = () => {}
   @Link isRefreshing: boolean
 
-  private applyNoteUpdate(noteId: number, likes: number, liked: boolean): void {
+  private applyReactionUpdate(noteId: number, reaction: ReactionResponse): void {
     const u: NoteItem[] = this.notes.concat()
     const i: number = u.findIndex((n: NoteItem) => n.id === noteId)
     if (i >= 0) {
-      u[i] = NoteHelper.copy(u[i], likes, liked)
+      u[i] = NoteHelper.applyReaction(u[i], reaction)
       this.notes = u
       this.refreshKey++
     }
@@ -41,29 +41,45 @@ export struct FeedTab {
     this.refreshKey++
   }
 
-  private handleLike(noteId: number): void {
+  private handleReact(noteId: number, reactionType: string): void {
     const idx: number = this.notes.findIndex((n: NoteItem) => n.id === noteId)
-    if (idx < 0) return
+    if (idx < 0) {
+      return
+    }
     const note: NoteItem = this.notes[idx]
-
     const token: string = AuthSession.getToken()
     if (token.length === 0) {
-      UiHelper.showToast('请先登录后再点赞')
+      UiHelper.showToast('请先登录后再表达心意')
       return
     }
 
-    const nextLiked: boolean = !(note.liked === true)
-    const nextLikes: number = nextLiked ? note.likes + 1 : Math.max(0, note.likes - 1)
-    this.applyNoteUpdate(noteId, nextLikes, nextLiked)
-
-    PostApi.likePost(noteId, token)
-      .then((res) => {
-        this.applyNoteUpdate(noteId, res.likes, res.liked)
+    PostApi.reactPost(noteId, reactionType, token)
+      .then((res: ReactionResponse) => {
+        this.applyReactionUpdate(noteId, res)
       })
       .catch((e: Error) => {
-        console.error('点赞操作失败: ' + e.message)
-        UiHelper.showToast(e.message || '点赞失败，请稍后重试')
-        this.applyNoteUpdate(noteId, note.likes, note.liked === true)
+        UiHelper.showToast(e.message || '操作失败，请稍后重试')
+      })
+  }
+
+  private handleCancelReact(noteId: number): void {
+    const idx: number = this.notes.findIndex((n: NoteItem) => n.id === noteId)
+    if (idx < 0) {
+      return
+    }
+    const note: NoteItem = this.notes[idx]
+    const token: string = AuthSession.getToken()
+    if (token.length === 0) {
+      UiHelper.showToast('请先登录')
+      return
+    }
+
+    PostApi.cancelReact(noteId, token)
+      .then((res: ReactionResponse) => {
+        this.applyReactionUpdate(noteId, res)
+      })
+      .catch((e: Error) => {
+        UiHelper.showToast(e.message || '操作失败，请稍后重试')
       })
   }
 
@@ -133,8 +149,11 @@ export struct FeedTab {
               ListItem() {
                 PostCard({
                   note: item,
-                  onLike: (noteId: number) => {
-                    this.handleLike(noteId)
+                  onReact: (noteId: number, reactionType: string) => {
+                    this.handleReact(noteId, reactionType)
+                  },
+                  onCancelReact: (noteId: number) => {
+                    this.handleCancelReact(noteId)
                   },
                   onSupport: (note: NoteItem) => {
                     this.onSupportNote(note)

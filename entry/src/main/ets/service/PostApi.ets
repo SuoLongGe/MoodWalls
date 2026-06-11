@@ -1,6 +1,7 @@
 import { HttpClient } from './HttpClient'
 import { AuthSession } from '../common/AuthSession'
 import {
+  CloudGiftResponse,
   LikeResponse,
   LikeResponseFromApi,
   NoteItem,
@@ -10,7 +11,9 @@ import {
   PublishPostResponse,
   MoodStatItem,
   MoodStatsResponse,
-  TodayStatsResponse
+  ReactionResponse,
+  TodayStatsResponse,
+  TopReactionItem
 } from '../model/MoodWallTypes'
 
 interface MoodStatItemJson {
@@ -27,6 +30,24 @@ interface MoodStatsResponseJson {
   items?: Array<MoodStatItemJson>
 }
 
+interface TopReactionJson {
+  type?: string
+  label?: string
+  count?: number | string
+}
+
+interface ReactionResponseJson {
+  totalReactions?: number | string
+  myReaction?: string | null
+  reactionStats?: Record<string, number | string>
+  topReactions?: Array<TopReactionJson>
+}
+
+interface CloudGiftResponseJson {
+  cloudCount?: number | string
+  sent?: boolean
+}
+
 export interface CreatePostBody {
   mood: string
   text: string
@@ -36,6 +57,10 @@ export interface CreatePostBody {
 
 export interface UpdateVisibilityBody {
   visibility: string
+}
+
+export interface ReactPostBody {
+  reactionType: string
 }
 
 export class PostApi {
@@ -92,9 +117,53 @@ export class PostApi {
       isMine: isMine,
       commentCount: item.commentCount !== undefined ? item.commentCount : 0,
       visibility: item.visibility !== undefined && item.visibility.length > 0 ? item.visibility : 'public',
-      canDelete: item.canDelete === true || isMine
+      canDelete: item.canDelete === true || isMine,
+      totalReactions: PostApi.toStatInt(item.totalReactions),
+      myReaction: item.myReaction,
+      topReactions: PostApi.normalizeTopReactions(item.topReactions),
+      reactionStats: PostApi.normalizeReactionStats(item.reactionStats),
+      whisperCount: PostApi.toStatInt(item.whisperCount),
+      cloudCount: PostApi.toStatInt(item.cloudCount)
     }
     return result
+  }
+
+  private static normalizeTopReactions(raw?: Array<TopReactionJson>): Array<TopReactionItem> {
+    const items: Array<TopReactionItem> = []
+    if (raw === undefined || raw === null) {
+      return items
+    }
+    raw.forEach((row: TopReactionJson) => {
+      if (row.type !== undefined && row.type.length > 0) {
+        items.push({
+          type: row.type,
+          label: row.label !== undefined && row.label !== null ? row.label : row.type,
+          count: PostApi.toStatInt(row.count)
+        })
+      }
+    })
+    return items
+  }
+
+  private static normalizeReactionStats(raw?: Record<string, number | string>): Record<string, number> {
+    const stats: Record<string, number> = {}
+    if (raw === undefined || raw === null) {
+      return stats
+    }
+    const keys: string[] = Object.keys(raw)
+    keys.forEach((key: string) => {
+      stats[key] = PostApi.toStatInt(raw[key])
+    })
+    return stats
+  }
+
+  static normalizeReactionResponse(raw: ReactionResponseJson): ReactionResponse {
+    return {
+      totalReactions: PostApi.toStatInt(raw.totalReactions),
+      myReaction: raw.myReaction,
+      reactionStats: PostApi.normalizeReactionStats(raw.reactionStats),
+      topReactions: PostApi.normalizeTopReactions(raw.topReactions)
+    }
   }
 
   private static normalizeLike(res: LikeResponseFromApi): LikeResponse {
@@ -211,6 +280,28 @@ export class PostApi {
   static likePost(postId: number, token: string): Promise<LikeResponse> {
     return HttpClient.postEmpty<LikeResponseFromApi>(`/posts/${postId}/like`, token)
       .then((res: LikeResponseFromApi) => PostApi.normalizeLike(res))
+  }
+
+  static reactPost(postId: number, reactionType: string, token: string): Promise<ReactionResponse> {
+    const body: ReactPostBody = { reactionType: reactionType }
+    return HttpClient.post<ReactionResponseJson>(`/posts/${postId}/react`, body, token)
+      .then((res: ReactionResponseJson) => PostApi.normalizeReactionResponse(res))
+  }
+
+  static cancelReact(postId: number, token: string): Promise<ReactionResponse> {
+    return HttpClient.deleteData<ReactionResponseJson>(`/posts/${postId}/react`, token)
+      .then((res: ReactionResponseJson) => PostApi.normalizeReactionResponse(res))
+  }
+
+  static sendCloud(postId: number, token: string): Promise<CloudGiftResponse> {
+    return HttpClient.postEmpty<CloudGiftResponseJson>(`/posts/${postId}/cloud`, token)
+      .then((res: CloudGiftResponseJson) => {
+        const result: CloudGiftResponse = {
+          cloudCount: PostApi.toStatInt(res.cloudCount),
+          sent: res.sent === true
+        }
+        return result
+      })
   }
 
   static getTodayStats(): Promise<TodayStatsResponse> {

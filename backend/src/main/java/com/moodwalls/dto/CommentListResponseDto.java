@@ -10,6 +10,7 @@ public class CommentListResponseDto {
     private int page;
     private int size;
     private boolean hasMore;
+    private int whisperCount;
 
     public List<CommentDto> getList() { return list; }
     public void setList(List<CommentDto> list) { this.list = list; }
@@ -25,4 +26,7 @@ public class CommentListResponseDto {
 
     public boolean isHasMore() { return hasMore; }
     public void setHasMore(boolean hasMore) { this.hasMore = hasMore; }
+
+    public int getWhisperCount() { return whisperCount; }
+    public void setWhisperCount(int whisperCount) { this.whisperCount = whisperCount; }
 }

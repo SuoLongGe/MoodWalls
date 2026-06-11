@@ -8,6 +8,7 @@ import {
   WeekStats,
   WeeklyReport
 } from '../model/ProfileApiTypes'
+import { MoodCurvePoint, MoodCurveResponse } from '../model/MoodWallTypes'
 
 interface ProfileOverviewJson {
   id?: number | string
@@ -40,6 +41,21 @@ interface CalendarResponseJson {
   days?: Array<CalendarDayJson>
 }
 
+interface MoodCurvePointJson {
+  date?: string
+  weekday?: string
+  dominantMood?: string | null
+  label?: string | null
+  color?: string | null
+  postCount?: number | string
+}
+
+interface MoodCurveResponseJson {
+  days?: number | string
+  points?: Array<MoodCurvePointJson>
+  summary?: string
+}
+
 export class ProfileApi {
 
   static getOverview(): Promise<ProfileOverview> {
@@ -62,6 +78,11 @@ export class ProfileApi {
 
   static getWeeklyReport(): Promise<WeeklyReport> {
     return HttpClient.get<WeeklyReport>('/profile/weekly-report', AuthSession.getToken())
+  }
+
+  static getMoodCurve(days: number = 7): Promise<MoodCurveResponse> {
+    return HttpClient.get<object>(`/profile/mood-curve?days=${days}`, AuthSession.getToken())
+      .then((payload: object) => ProfileApi.mapMoodCurvePayload(payload, days))
   }
 
   private static mapOverviewPayload(payload: object): ProfileOverview {
@@ -112,6 +133,31 @@ export class ProfileApi {
       ? json.month
       : fallbackMonth
     return { month: month, days: days }
+  }
+
+  private static mapMoodCurvePayload(payload: object, fallbackDays: number): MoodCurveResponse {
+    const text: string = JSON.stringify(payload)
+    const json: MoodCurveResponseJson = JSON.parse(text) as MoodCurveResponseJson
+    const points: Array<MoodCurvePoint> = []
+    const rawPoints: Array<MoodCurvePointJson> =
+      json.points !== undefined && json.points !== null ? json.points : []
+    for (let i: number = 0; i < rawPoints.length; i++) {
+      const row: MoodCurvePointJson = rawPoints[i]
+      const point: MoodCurvePoint = {
+        date: row.date !== undefined && row.date !== null ? row.date : '',
+        weekday: row.weekday !== undefined && row.weekday !== null ? row.weekday : '',
+        dominantMood: row.dominantMood,
+        label: row.label,
+        color: row.color,
+        postCount: ProfileApi.toInt(row.postCount)
+      }
+      points.push(point)
+    }
+    return {
+      days: ProfileApi.toInt(json.days !== undefined && json.days !== null ? json.days : fallbackDays),
+      points: points,
+      summary: json.summary !== undefined && json.summary !== null ? json.summary : ''
+    }
   }
 
   private static toInt(value: number | string | undefined | null): number {

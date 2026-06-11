@@ -1,4 +1,4 @@
-import { NoteItem } from '../model/MoodWallTypes'
+import { NoteItem, ReactionResponse, TopReactionItem } from '../model/MoodWallTypes'
 import { PostSummary } from '../model/ProfileApiTypes'
 import { AuthSession } from './AuthSession'
 
@@ -23,8 +23,23 @@ export class NoteHelper {
       isMine: src.isMine,
       commentCount: src.commentCount,
       visibility: src.visibility,
-      canDelete: src.canDelete
+      canDelete: src.canDelete,
+      totalReactions: src.totalReactions,
+      myReaction: src.myReaction,
+      topReactions: src.topReactions,
+      reactionStats: src.reactionStats,
+      whisperCount: src.whisperCount,
+      cloudCount: src.cloudCount
     }
+    return result
+  }
+
+  static applyReaction(src: NoteItem, reaction: ReactionResponse): NoteItem {
+    const result: NoteItem = NoteHelper.copy(src)
+    result.totalReactions = reaction.totalReactions
+    result.myReaction = reaction.myReaction
+    result.reactionStats = reaction.reactionStats
+    result.topReactions = reaction.topReactions
     return result
   }
 
@@ -49,7 +64,8 @@ export class NoteHelper {
       isMine: forceMine || item.isMine === true,
       commentCount: item.commentCount !== undefined ? item.commentCount : 0,
       visibility: item.visibility !== undefined && item.visibility.length > 0 ? item.visibility : 'public',
-      canDelete: item.canDelete !== false
+      canDelete: item.canDelete !== false,
+      cloudCount: item.cloudCount !== undefined ? item.cloudCount : 0
     }
     return result
   }

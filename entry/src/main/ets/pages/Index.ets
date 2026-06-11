@@ -10,7 +10,9 @@ import { SupportDialog } from '../components/SupportDialog'
 import { LOCATION_OPTIONS, MOOD_OPTIONS } from '../mock/MoodWallData'
 import { MoodOption, NoteItem } from '../model/MoodWallTypes'
 import { MoodApi } from '../service/MoodApi'
+import { InspirationApi } from '../service/InspirationApi'
 import { PostApi } from '../service/PostApi'
+import { CreateEncouragementNoteBody } from '../model/MoodWallTypes'
 import { FeedTab } from '../tabs/FeedTab'
 import { MapTab } from '../tabs/MapTab'
 import { PostTab } from '../tabs/PostTab'
@@ -35,6 +37,9 @@ struct Index {
   @State loadingFirst: boolean = true
   @State isFeedRefreshing: boolean = false
   @State publishing: boolean = false
+  @State noteDraftText: string = ''
+  @State noteMoodKey: string = 'calm'
+  @State submittingNote: boolean = false
   @State profileRefreshTick: number = 0
   @State tabContentOpacity: number = 1
   @State tabContentOffsetY: number = 0
@@ -299,6 +304,37 @@ struct Index {
     }
   }
 
+  submitEncouragementNote(): void {
+    const content: string = this.noteDraftText.trim()
+    if (content.length < 8) {
+      UiHelper.showToast('小纸条至少需要 8 个字')
+      return
+    }
+
+    const token: string = AuthSession.getToken()
+    if (token.length === 0) {
+      UiHelper.showToast('请先登录')
+      return
+    }
+
+    this.submittingNote = true
+    const body: CreateEncouragementNoteBody = {
+      content: content,
+      mood: this.noteMoodKey
+    }
+    InspirationApi.createNote(body, token)
+      .then(() => {
+        this.noteDraftText = ''
+        this.submittingNote = false
+        this.currentTab = 3
+        UiHelper.showToast('小纸条已放进池里，等待陌生人领取')
+      })
+      .catch((e: Error) => {
+        this.submittingNote = false
+        UiHelper.showToast(e.message || '放入失败，请稍后重试')
+      })
+  }
+
   publishNote(): void {
     const content: string = this.draftText.trim()
     if (content.length === 0) return
@@ -401,22 +437,28 @@ struct Index {
                 })
                   .layoutWeight(1)
               }
+            } else if (this.currentTab === 1) {
+              MapTab({
+                onNavigateToPost: () => {
+                  this.currentTab = 2
+                }
+              })
+                .layoutWeight(1)
+                .padding({ left: 16, right: 16, top: 10, bottom: 18 })
             } else {
               Scroll() {
                 Column({ space: 16 }) {
-                  if (this.currentTab === 1) {
-                    MapTab({
-                      onNavigateToPost: () => {
-                        this.currentTab = 2
-                      }
-                    })
-                  } else if (this.currentTab === 2) {
+                  if (this.currentTab === 2) {
                     PostTab({
                       selectedMoodKey: $selectedMoodKey,
                       draftText: $draftText,
                       locationIndex: $locationIndex,
+                      noteDraftText: $noteDraftText,
+                      noteMoodKey: $noteMoodKey,
                       publishing: this.publishing,
-                      onPublish: () => this.publishNote()
+                      submittingNote: this.submittingNote,
+                      onPublish: () => this.publishNote(),
+                      onSubmitNote: () => this.submitEncouragementNote()
                     })
                   } else {
                     ProfileTab({

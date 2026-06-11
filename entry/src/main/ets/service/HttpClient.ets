@@ -26,6 +26,10 @@ export class HttpClient {
     return HttpClient.request<void>(path, http.RequestMethod.DELETE, undefined, token)
   }
 
+  static deleteData<T>(path: string, token: string): Promise<T> {
+    return HttpClient.request<T>(path, http.RequestMethod.DELETE, undefined, token)
+  }
+
   private static request<T>(
     path: string,
     method: http.RequestMethod,

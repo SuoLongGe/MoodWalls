@@ -2,6 +2,11 @@ package com.moodwalls.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 public class PostSummaryDto {
 
     private Long id;
@@ -25,6 +30,13 @@ public class PostSummaryDto {
     private String visibility;
     @JsonProperty("canDelete")
     private boolean canDelete;
+    private int totalReactions;
+    @JsonProperty("myReaction")
+    private String myReaction;
+    private List<TopReactionDto> topReactions = new ArrayList<>();
+    private Map<String, Integer> reactionStats = new LinkedHashMap<>();
+    private int whisperCount;
+    private int cloudCount;
 
     public Long getId() {
         return id;
@@ -168,5 +180,53 @@ public class PostSummaryDto {
 
     public void setCanDelete(boolean canDelete) {
         this.canDelete = canDelete;
+    }
+
+    public int getTotalReactions() {
+        return totalReactions;
+    }
+
+    public void setTotalReactions(int totalReactions) {
+        this.totalReactions = totalReactions;
+    }
+
+    public String getMyReaction() {
+        return myReaction;
+    }
+
+    public void setMyReaction(String myReaction) {
+        this.myReaction = myReaction;
+    }
+
+    public List<TopReactionDto> getTopReactions() {
+        return topReactions;
+    }
+
+    public void setTopReactions(List<TopReactionDto> topReactions) {
+        this.topReactions = topReactions;
+    }
+
+    public Map<String, Integer> getReactionStats() {
+        return reactionStats;
+    }
+
+    public void setReactionStats(Map<String, Integer> reactionStats) {
+        this.reactionStats = reactionStats;
+    }
+
+    public int getWhisperCount() {
+        return whisperCount;
+    }
+
+    public void setWhisperCount(int whisperCount) {
+        this.whisperCount = whisperCount;
+    }
+
+    public int getCloudCount() {
+        return cloudCount;
+    }
+
+    public void setCloudCount(int cloudCount) {
+        this.cloudCount = cloudCount;
     }
 }

@@ -41,14 +41,17 @@ public class ProfileService {
     private final UserRepository userRepository;
     private final PostRepository postRepository;
     private final UserDailyMoodRepository userDailyMoodRepository;
+    private final CloudGiftService cloudGiftService;
 
     public ProfileService(
             UserRepository userRepository,
             PostRepository postRepository,
-            UserDailyMoodRepository userDailyMoodRepository) {
+            UserDailyMoodRepository userDailyMoodRepository,
+            CloudGiftService cloudGiftService) {
         this.userRepository = userRepository;
         this.postRepository = postRepository;
         this.userDailyMoodRepository = userDailyMoodRepository;
+        this.cloudGiftService = cloudGiftService;
     }
 
     public ProfileOverviewDto getOverview(Long userId) {
@@ -121,6 +124,7 @@ public class ProfileService {
         List<PostSummaryDto> list = result.getContent().stream()
                 .map(post -> toPostSummary(post, user))
                 .collect(Collectors.toList());
+        enrichCloudCounts(list);
 
         PostListResponseDto response = new PostListResponseDto();
         response.setList(list);
@@ -264,5 +268,16 @@ public class ProfileService {
         dto.setVisibility(post.getVisibility() != null && post.getVisibility() == 2 ? "private" : "public");
         dto.setCanDelete(true);
         return dto;
+    }
+
+    private void enrichCloudCounts(List<PostSummaryDto> summaries) {
+        if (summaries == null || summaries.isEmpty()) {
+            return;
+        }
+        List<Long> postIds = summaries.stream().map(PostSummaryDto::getId).collect(Collectors.toList());
+        Map<Long, Integer> cloudMap = cloudGiftService.countByPostIds(postIds);
+        for (PostSummaryDto summary : summaries) {
+            summary.setCloudCount(cloudMap.getOrDefault(summary.getId(), 0));
+        }
     }
 }

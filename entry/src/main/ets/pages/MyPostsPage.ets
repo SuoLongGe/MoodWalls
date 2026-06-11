@@ -220,9 +220,10 @@ struct MyPostsPage {
             ForEach(this.posts, (item: PostSummary) => {
               PostCard({
                 note: this.toNoteItem(item),
-                onLike: () => {
-                  UiHelper.showToast('请在心墙页点赞')
+                onReact: () => {
+                  UiHelper.showToast('请在心墙页表达心意')
                 },
+                onCancelReact: () => {},
                 onSupport: () => {
                   UiHelper.showToast('请在心墙页使用接住心声')
                 },

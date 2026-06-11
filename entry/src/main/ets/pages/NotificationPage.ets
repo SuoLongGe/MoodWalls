@@ -100,6 +100,8 @@ struct NotificationPage {
     if (type === 'like') return '点赞'
     if (type === 'support') return '接住心声'
     if (type === 'comment') return '评论'
+    if (type === 'whisper') return '悄悄话'
+    if (type === 'cloud') return '送云'
     if (type === 'reply') return '回复'
     if (type === 'system') return '系统通知'
     if (type === 'weekly_report') return '温情周报'
@@ -110,6 +112,8 @@ struct NotificationPage {
     if (type === 'like') return '#F08C62'
     if (type === 'support') return '#73C088'
     if (type === 'comment') return '#6CB1F0'
+    if (type === 'whisper') return '#8B7AD6'
+    if (type === 'cloud') return '#6CB1F0'
     if (type === 'reply') return '#B786F7'
     if (type === 'system') return '#92A0B0'
     if (type === 'weekly_report') return '#B786F7'
@@ -149,7 +153,7 @@ struct NotificationPage {
   private openNotificationTarget(item: NotificationItem): void {
     this.markNotificationRead(item)
 
-    const postTypes: string[] = ['comment', 'reply', 'like', 'support']
+    const postTypes: string[] = ['comment', 'reply', 'like', 'support', 'whisper', 'cloud']
     if (postTypes.indexOf(item.type) >= 0 && item.refType === 'post' && item.refId !== null && item.refId > 0) {
       const scrollToComments: boolean = item.type === 'like' || item.type === 'comment' || item.type === 'reply'
       UiHelper.pushToPostDetail(item.refId, scrollToComments)

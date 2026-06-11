@@ -58,4 +58,32 @@ public class NotificationService {
                     post.getId(), likerUserId, ex.getMessage(), ex);
         }
     }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void notifyCloudGift(Post post, Long senderUserId) {
+        if (post == null || post.getId() == null || post.getUserId() == null || senderUserId == null) {
+            return;
+        }
+        if (Objects.equals(post.getUserId(), senderUserId)) {
+            return;
+        }
+
+        try {
+            User sender = userRepository.findById(senderUserId).orElse(null);
+            String nickname = sender != null ? sender.getNickname() : "有人";
+
+            Notification notification = new Notification();
+            notification.setUserId(post.getUserId());
+            notification.setType("cloud");
+            notification.setTitle("收到一朵云");
+            notification.setContent(nickname + " 给你的心情送了一朵云");
+            notification.setRefType("post");
+            notification.setRefId(post.getId());
+            notification.setIsRead(0);
+            notificationRepository.saveAndFlush(notification);
+        } catch (Exception ex) {
+            log.error("Failed to create cloud notification. postId={}, senderId={}, error={}",
+                    post.getId(), senderUserId, ex.getMessage(), ex);
+        }
+    }
 }
