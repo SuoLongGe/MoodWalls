@@ -48,7 +48,6 @@ export interface PostSummary {
   commentCount?: number
   visibility?: string
   canDelete?: boolean
-  cloudCount?: number
 }
 
 export interface PostListResponse {
@@ -59,15 +58,9 @@ export interface PostListResponse {
   hasMore: boolean
 }
 
-export interface MoodSummary {
-  calm: number
-  anxious: number
-  happy: number
-}
-
 export interface WeeklyReport {
   report: string
-  moodSummary: MoodSummary
+  moodSummary: Record<string, number>
   postCount: number
 }
 

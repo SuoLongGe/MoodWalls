@@ -29,6 +29,8 @@ struct Index {
   @State @Watch('onSupportVisibleChange') supportVisible: boolean = false
   @State supportTitle: string = ''
   @State supportMessage: string = ''
+  @State supportComfortNote: string = ''
+  @State supportRiskLevel: number = 0
   @State supportLoading: boolean = false
   @State notes: Array<NoteItem> = []
   @State loadingMore: boolean = false
@@ -255,16 +257,27 @@ struct Index {
         MoodApi.supportPost(note.id, token)
           .then((res) => {
             this.supportMessage = res.response
+            this.supportRiskLevel = res.riskLevel !== undefined ? res.riskLevel : 0
+            this.supportComfortNote = res.comfortNote !== undefined ? res.comfortNote : ''
+            if (res.riskLevel === 2) {
+              this.supportTitle = '⚠️ 我们很关心你'
+            } else if (res.riskLevel === 1) {
+              this.supportTitle = '💚 温心小纸条'
+            }
             this.supportLoading = false
             this.refreshUnreadCount()
           })
           .catch((err: Error) => {
             console.error('[MoodWalls] supportPost failed: ' + (err.message || String(err)))
             this.supportMessage = '你已经很努力了。先把这份情绪放在这里，慢慢呼吸一下，再给自己一点点缓冲空间。'
+            this.supportRiskLevel = 0
+            this.supportComfortNote = ''
             this.supportLoading = false
           })
       } else {
         this.supportMessage = '你已经很努力了。先把这份情绪放在这里，慢慢呼吸一下，再给自己一点点缓冲空间。'
+        this.supportRiskLevel = 0
+        this.supportComfortNote = ''
         this.supportLoading = false
       }
     } else {
@@ -348,7 +361,9 @@ struct Index {
     }, token)
       .then((res) => {
         const aiResponse: string = res.aiResponse ?? '你已经很努力了。先把这份情绪放在这里，慢慢呼吸一下，再给自己一点点缓冲空间。'
-        const newNote: NoteItem = NoteHelper.copy({
+        const riskLevel: number = res.riskLevel !== undefined ? res.riskLevel : 0
+        const comfortNote: string = res.comfortNote !== undefined ? res.comfortNote : ''
+        const newNote: NoteItem = {
           id: res.post.id,
           userId: res.post.userId,
           nickname: res.post.nickname,
@@ -367,13 +382,21 @@ struct Index {
           commentCount: res.post.commentCount !== undefined ? res.post.commentCount : 0,
           visibility: res.post.visibility !== undefined ? res.post.visibility : 'public',
           canDelete: true
-        })
+        }
         this.notes = [newNote, ...this.notes]
         this.draftText = ''
         this.publishing = false
         this.currentTab = 0
-        this.supportTitle = `给「${newNote.moodLabel}」的回信`
+        if (riskLevel === 2) {
+          this.supportTitle = '⚠️ 我们很关心你'
+        } else if (riskLevel === 1) {
+          this.supportTitle = '💚 温心小纸条'
+        } else {
+          this.supportTitle = `给「${newNote.moodLabel}」的回信`
+        }
         this.supportMessage = aiResponse
+        this.supportRiskLevel = riskLevel
+        this.supportComfortNote = comfortNote
         this.supportLoading = false
         this.supportVisible = true
         this.profileRefreshTick++
@@ -484,6 +507,8 @@ struct Index {
         visible: $supportVisible,
         title: this.supportTitle,
         message: this.supportMessage,
+        comfortNote: this.supportComfortNote,
+        riskLevel: this.supportRiskLevel,
         loading: this.supportLoading
       })
     }

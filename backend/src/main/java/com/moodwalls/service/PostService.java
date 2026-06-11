@@ -217,6 +217,8 @@ public class PostService {
         PublishPostResponseDto response = new PublishPostResponseDto();
         response.setPost(summary);
         response.setAiResponse(ai.responseText());
+        response.setRiskLevel(ai.riskLevel());
+        response.setComfortNote(aiService.getComfortNote(ai.riskLevel()));
         return response;
     }
 

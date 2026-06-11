@@ -259,7 +259,9 @@ export class PostApi {
       const postRaw: NoteItemFromApi = res.post as NoteItemFromApi
       const result: PublishPostResponse = {
         post: PostApi.normalizeNote(postRaw),
-        aiResponse: res.aiResponse
+        aiResponse: res.aiResponse,
+        riskLevel: res.riskLevel !== undefined ? res.riskLevel : 0,
+        comfortNote: res.comfortNote !== undefined ? res.comfortNote : ''
       }
       return result
     })

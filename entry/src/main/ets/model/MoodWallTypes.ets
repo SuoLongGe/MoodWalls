@@ -99,6 +99,8 @@ export interface LikeResponseFromApi {
 export interface PublishPostResponse {
   post: NoteItem
   aiResponse: string
+  riskLevel: number
+  comfortNote: string
 }
 
 export interface TodayStatsResponse {
@@ -198,7 +200,9 @@ export interface MoodCurveResponse {
 
 export interface SupportResponse {
   response: string
+  riskLevel: number
   isCrisis: boolean
+  comfortNote: string
 }
 
 export interface WeeklyReportResponse {
