@@ -2,7 +2,12 @@ import { AuthTheme } from '../common/AuthTheme'
 import { AppTheme } from '../common/AppTheme'
 import { AuthSession } from '../common/AuthSession'
 import { UiHelper } from '../common/UiHelper'
+import { AuthCodeButton } from '../components/auth/AuthCodeButton'
+import { AuthGlassCard } from '../components/auth/AuthGlassCard'
 import { AuthInput } from '../components/auth/AuthInput'
+import { AuthModeSwitch } from '../components/auth/AuthModeSwitch'
+import { AuthPrimaryButton } from '../components/auth/AuthPrimaryButton'
+import { AuthScaffold } from '../components/auth/AuthScaffold'
 import { AuthResult } from '../model/AuthApiTypes'
 import { AuthApi } from '../service/AuthApi'
 
@@ -18,16 +23,36 @@ struct Login {
   @State loading: boolean = false
   @State sendingCode: boolean = false
   @State resendSeconds: number = 0
+  @State heroOpacity: number = 0
+  @State heroOffsetY: number = 28
+  @State cardOpacity: number = 0
+  @State cardOffsetY: number = 56
+  @State logoScale: number = 0.86
+  @State floatOffset: number = 0
+  @State formOpacity: number = 1
+  @State formOffsetX: number = 0
   private resendTimer: number = -1
+  private floatTimer: number = -1
+  private floatUp: boolean = true
 
   aboutToAppear(): void {
     if (AuthSession.isLoggedIn()) {
       UiHelper.replaceTo('pages/Index')
+      return
     }
+    animateTo({ duration: 880, curve: Curve.FastOutSlowIn }, () => {
+      this.heroOpacity = 1
+      this.heroOffsetY = 0
+      this.cardOpacity = 1
+      this.cardOffsetY = 0
+      this.logoScale = 1
+    })
+    this.startFloatAnimation()
   }
 
   aboutToDisappear(): void {
     this.clearResendTimer()
+    this.clearFloatTimer()
   }
 
   pageTransition() {
@@ -46,6 +71,23 @@ struct Login {
     }
   }
 
+  private clearFloatTimer(): void {
+    if (this.floatTimer >= 0) {
+      clearInterval(this.floatTimer)
+      this.floatTimer = -1
+    }
+  }
+
+  private startFloatAnimation(): void {
+    this.clearFloatTimer()
+    this.floatTimer = setInterval(() => {
+      animateTo({ duration: 2200, curve: Curve.EaseInOut }, () => {
+        this.floatOffset = this.floatUp ? -10 : 0
+        this.floatUp = !this.floatUp
+      })
+    }, 2300)
+  }
+
   private startResendCountdown(seconds: number): void {
     this.clearResendTimer()
     this.resendSeconds = seconds
@@ -62,6 +104,24 @@ struct Login {
   private isValidEmail(value: string): boolean {
     const trimmed: string = value.trim()
     return trimmed.includes('@') && trimmed.includes('.') && trimmed.length >= 5
+  }
+
+  private switchLoginMode(mode: string): void {
+    if (this.loginMode === mode || this.loading) {
+      return
+    }
+    animateTo({ duration: 180, curve: Curve.EaseIn }, () => {
+      this.formOpacity = 0
+      this.formOffsetX = mode === 'email' ? 20 : -20
+    })
+    setTimeout(() => {
+      this.loginMode = mode
+      this.formOffsetX = mode === 'email' ? -20 : 20
+      animateTo({ duration: 300, curve: Curve.FastOutSlowIn }, () => {
+        this.formOpacity = 1
+        this.formOffsetX = 0
+      })
+    }, 160)
   }
 
   private sendEmailCode(): void {
@@ -139,165 +199,180 @@ struct Login {
   }
 
   build() {
-    Stack({ alignContent: Alignment.Top }) {
-      Image($r('app.media.login_bg'))
-        .width('100%')
-        .height('100%')
-        .objectFit(ImageFit.Cover)
-
-      Column()
-        .width('100%')
-        .height('100%')
-        .backgroundColor(AuthTheme.OVERLAY)
-
-      Scroll() {
-        Column({ space: 0 }) {
-          Column({ space: 10 }) {
-            Stack() {
-              Circle()
-                .width(92)
-                .height(92)
-                .fill(Color.White)
-                .shadow({ radius: 16, color: 'rgba(45, 116, 196, 0.15)', offsetY: 6 })
-              Image($r('app.media.app_logo'))
-                .width(76)
-                .height(76)
-                .objectFit(ImageFit.Contain)
-            }
-            .margin({ top: 56 })
-
-            Text('校园心灵墙')
-              .fontSize(28)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(AuthTheme.TITLE)
-
-            Text('温暖传递，心灵栖息')
-              .fontSize(14)
-              .fontColor(AuthTheme.SUBTITLE)
-          }
-          .width('100%')
-          .alignItems(HorizontalAlign.Center)
-
-          Column({ space: 18 }) {
-            if (this.loginMode === 'password') {
-              this.buildPasswordForm()
-            } else {
-              this.buildEmailForm()
-            }
-
-            Button(this.loading ? '登录中...' : '登录')
-              .width('100%')
-              .height(50)
-              .fontSize(16)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(Color.White)
-              .backgroundColor(this.loading ? '#7BA3D4' : AuthTheme.PRIMARY)
-              .borderRadius(25)
-              .margin({ top: 6 })
-              .enabled(!this.loading)
-              .onClick(() => this.handleLogin())
-
-            Row() {
-              Text('忘记密码？')
-                .fontSize(13)
-                .fontColor(AuthTheme.LINK_MUTED)
-                .onClick(() => {
-                  UiHelper.showToast('请使用邮箱验证码登录，或在个人中心修改密码')
-                })
-
-              Text('新用户注册')
-                .fontSize(13)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(AuthTheme.PRIMARY)
-                .onClick(() => {
-                  if (!this.loading) {
-                    UiHelper.pushTo('pages/Register')
-                  }
-                })
-            }
-            .width('100%')
-            .justifyContent(FlexAlign.SpaceBetween)
-
-            Row({ space: 12 }) {
-              Divider()
-                .layoutWeight(1)
-                .color(AuthTheme.DIVIDER)
-              Text('其他登录方式')
-                .fontSize(12)
-                .fontColor(AuthTheme.LINK_MUTED)
-              Divider()
-                .layoutWeight(1)
-                .color(AuthTheme.DIVIDER)
-            }
-            .width('100%')
-            .margin({ top: 4 })
-
-            Button(this.loginMode === 'password' ? '使用邮箱验证码登录' : '使用账号密码登录')
-              .width('100%')
-              .height(44)
-              .fontSize(14)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(AuthTheme.PRIMARY)
-              .backgroundColor('#F2F7FC')
-              .borderRadius(22)
-              .enabled(!this.loading)
-              .onClick(() => {
-                this.loginMode = this.loginMode === 'password' ? 'email' : 'password'
-              })
-          }
-          .width('100%')
-          .padding(28)
-          .margin({ left: 20, right: 20, top: 28 })
-          .backgroundColor(AuthTheme.CARD_BG)
-          .borderRadius(40)
-          .shadow({ radius: 28, color: 'rgba(30, 74, 122, 0.12)', offsetY: 10 })
-
-          Column({ space: 6 }) {
-            Text('登录即代表您已阅读并同意')
-              .fontSize(11)
-              .fontColor(AuthTheme.LINK_MUTED)
-            Row({ space: 4 }) {
-              Text('《用户服务协议》')
-                .fontSize(11)
-                .fontColor(AuthTheme.PRIMARY)
-                .decoration({ type: TextDecorationType.Underline })
-              Text('与')
-                .fontSize(11)
-                .fontColor(AuthTheme.LINK_MUTED)
-              Text('《隐私保护政策》')
-                .fontSize(11)
-                .fontColor(AuthTheme.PRIMARY)
-                .decoration({ type: TextDecorationType.Underline })
-            }
-          }
-          .width('100%')
-          .alignItems(HorizontalAlign.Center)
-          .margin({ top: 28, bottom: 40 })
+    Column() {
+      AuthScaffold({
+        heroHeight: 300,
+        hero: () => {
+          this.buildHero()
+        },
+        body: () => {
+          this.buildBody()
         }
-        .width('100%')
-        .constraintSize({ minHeight: '100%' })
-      }
-      .width('100%')
-      .height('100%')
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
+      })
     }
     .width('100%')
     .height('100%')
   }
 
   @Builder
+  buildHero() {
+    Column({ space: 12 }) {
+      Stack() {
+        Circle()
+          .width(108)
+          .height(108)
+          .fill(AuthTheme.HERO_GLOW)
+          .blur(18)
+          .scale({ x: 1.12, y: 1.12 })
+
+        Circle()
+          .width(92)
+          .height(92)
+          .fill('rgba(255, 255, 255, 0.92)')
+          .shadow({ radius: 24, color: 'rgba(20, 50, 45, 0.2)', offsetY: 8 })
+
+        Image($r('app.media.app_logo'))
+          .width(72)
+          .height(72)
+          .objectFit(ImageFit.Contain)
+      }
+      .scale({ x: this.logoScale, y: this.logoScale })
+      .translate({ y: this.floatOffset })
+
+      Text('校园心灵墙')
+        .fontSize(30)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(AuthTheme.TITLE)
+        .letterSpacing(2)
+        .shadow({ radius: 8, color: 'rgba(0,0,0,0.25)', offsetY: 2 })
+
+      Text('温暖传递 · 心灵栖息')
+        .fontSize(14)
+        .fontColor(AuthTheme.SUBTITLE)
+        .letterSpacing(1)
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Center)
+    .opacity(this.heroOpacity)
+    .translate({ y: this.heroOffsetY })
+  }
+
+  @Builder
+  buildBody() {
+    Column({ space: 20 }) {
+      AuthGlassCard({
+        cardOpacity: this.cardOpacity,
+        cardOffsetY: this.cardOffsetY,
+        content: () => {
+          this.buildCardContent()
+        }
+      })
+
+      Column({ space: 6 }) {
+        Text('登录即代表您已阅读并同意')
+          .fontSize(11)
+          .fontColor(AuthTheme.LINK_MUTED)
+        Row({ space: 4 }) {
+          Text('《用户服务协议》')
+            .fontSize(11)
+            .fontColor(AuthTheme.PRIMARY_DARK)
+            .decoration({ type: TextDecorationType.Underline })
+          Text('与')
+            .fontSize(11)
+            .fontColor(AuthTheme.LINK_MUTED)
+          Text('《隐私保护政策》')
+            .fontSize(11)
+            .fontColor(AuthTheme.PRIMARY_DARK)
+            .decoration({ type: TextDecorationType.Underline })
+        }
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Center)
+      .opacity(this.cardOpacity)
+    }
+    .width('100%')
+  }
+
+  @Builder
+  buildCardContent() {
+    Column({ space: 18 }) {
+      Column({ space: 6 }) {
+        Text('欢迎回来')
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(AuthTheme.PRIMARY_DARK)
+        Text('选择你喜欢的方式，继续心灵之旅')
+          .fontSize(13)
+          .fontColor(AuthTheme.LINK_MUTED)
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+
+      AuthModeSwitch({
+        activeMode: this.loginMode,
+        leftLabel: '密码登录',
+        rightLabel: '邮箱验证码',
+        leftMode: 'password',
+        rightMode: 'email',
+        onChange: (mode: string) => {
+          this.switchLoginMode(mode)
+        }
+      })
+
+      Column({ space: 14 }) {
+        if (this.loginMode === 'password') {
+          this.buildPasswordForm()
+        } else {
+          this.buildEmailForm()
+        }
+      }
+      .width('100%')
+      .opacity(this.formOpacity)
+      .translate({ x: this.formOffsetX })
+
+      AuthPrimaryButton({
+        label: '登录',
+        loading: this.loading,
+        buttonEnabled: !this.loading,
+        onTap: () => {
+          this.handleLogin()
+        }
+      })
+
+      Row() {
+        Text('忘记密码？')
+          .fontSize(13)
+          .fontColor(AuthTheme.LINK_MUTED)
+          .onClick(() => {
+            UiHelper.showToast('请使用邮箱验证码登录，或在个人中心修改密码')
+          })
+
+        Text('新用户注册 →')
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(AuthTheme.PRIMARY)
+          .onClick(() => {
+            if (!this.loading) {
+              UiHelper.pushTo('pages/Register')
+            }
+          })
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.SpaceBetween)
+    }
+    .width('100%')
+  }
+
+  @Builder
   buildPasswordForm() {
     AuthInput({
       placeholder: '昵称 / 手机号 / 邮箱',
-      value: $account,
-      leadingLabel: '账'
+      value: $account
     })
 
     AuthInput({
       placeholder: '密码',
       value: $password,
-      leadingLabel: '密',
       isPassword: true,
       showToggle: true
     })
@@ -307,28 +382,25 @@ struct Login {
   buildEmailForm() {
     AuthInput({
       placeholder: '请输入邮箱',
-      value: $email,
-      leadingLabel: '邮'
+      value: $email
     })
 
     Row({ space: 10 }) {
       Column() {
         AuthInput({
-          placeholder: '请输入邮箱验证码',
+          placeholder: '邮箱验证码',
           value: $emailCode
         })
       }
       .layoutWeight(1)
 
-      Button(this.sendingCode ? '发送中' : (this.resendSeconds > 0 ? `${this.resendSeconds}s` : '获取验证码'))
-        .width(108)
-        .height(44)
-        .fontSize(12)
-        .fontColor(Color.White)
-        .backgroundColor(this.resendSeconds > 0 || this.sendingCode ? '#9AB8D8' : AuthTheme.PRIMARY)
-        .borderRadius(12)
-        .enabled(!this.sendingCode && this.resendSeconds === 0)
-        .onClick(() => this.sendEmailCode())
+      AuthCodeButton({
+        label: this.sendingCode ? '发送中' : (this.resendSeconds > 0 ? `${this.resendSeconds}s` : '获取验证码'),
+        buttonEnabled: !this.sendingCode && this.resendSeconds === 0,
+        onTap: () => {
+          this.sendEmailCode()
+        }
+      })
     }
     .alignItems(VerticalAlign.Top)
   }

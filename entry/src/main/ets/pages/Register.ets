@@ -5,7 +5,11 @@ import { AuthSession } from '../common/AuthSession'
 import { AVATAR_KEYS, getAvatarResource } from '../common/AvatarResources'
 import { ImagePickerHelper } from '../common/ImagePickerHelper'
 import { UiHelper } from '../common/UiHelper'
+import { AuthCodeButton } from '../components/auth/AuthCodeButton'
+import { AuthGlassCard } from '../components/auth/AuthGlassCard'
 import { AuthInput } from '../components/auth/AuthInput'
+import { AuthPrimaryButton } from '../components/auth/AuthPrimaryButton'
+import { AuthScaffold } from '../components/auth/AuthScaffold'
 import { UserAvatar } from '../components/UserAvatar'
 import { AuthResult } from '../model/AuthApiTypes'
 import { AuthApi } from '../service/AuthApi'
@@ -26,6 +30,13 @@ struct Register {
   @State loading: boolean = false
   @State sendingCode: boolean = false
   @State resendSeconds: number = 0
+  @State headerOpacity: number = 0
+  @State headerOffsetY: number = -16
+  @State cardOpacity: number = 0
+  @State cardOffsetY: number = 40
+  @State stepOpacity: number = 1
+  @State stepOffsetX: number = 0
+  @State progressWidth: number = 0
   private resendTimer: number = -1
 
   pageTransition() {
@@ -35,6 +46,16 @@ struct Register {
     PageTransitionExit({ duration: AppTheme.PAGE_FADE_EXIT_MS, curve: Curve.EaseIn })
       .opacity(0)
       .translate({ y: -24 })
+  }
+
+  aboutToAppear(): void {
+    animateTo({ duration: 800, curve: Curve.FastOutSlowIn }, () => {
+      this.headerOpacity = 1
+      this.headerOffsetY = 0
+      this.cardOpacity = 1
+      this.cardOffsetY = 0
+      this.progressWidth = this.registerStep === 1 ? 50 : 100
+    })
   }
 
   aboutToDisappear(): void {
@@ -68,6 +89,23 @@ struct Register {
 
   private isValidPhone(value: string): boolean {
     return /^1\d{10}$/.test(value.trim())
+  }
+
+  private animateStepChange(nextStep: number): void {
+    const goingForward: boolean = nextStep > this.registerStep
+    animateTo({ duration: 200, curve: Curve.EaseIn }, () => {
+      this.stepOpacity = 0
+      this.stepOffsetX = goingForward ? -28 : 28
+    })
+    setTimeout(() => {
+      this.registerStep = nextStep
+      this.stepOffsetX = goingForward ? 28 : -28
+      animateTo({ duration: 320, curve: Curve.FastOutSlowIn }, () => {
+        this.stepOpacity = 1
+        this.stepOffsetX = 0
+        this.progressWidth = nextStep === 1 ? 50 : 100
+      })
+    }, 180)
   }
 
   private sendEmailCode(): void {
@@ -116,7 +154,7 @@ struct Register {
       UiHelper.showToast('密码建议 8-16 位数字或字母组合')
       return
     }
-    this.registerStep = 2
+    this.animateStepChange(2)
   }
 
   handleRegister(): void {
@@ -147,7 +185,7 @@ struct Register {
       UiHelper.replaceTo('pages/Index')
     }).catch((err: Error) => {
       UiHelper.showToast(err.message)
-      this.registerStep = 1
+      this.animateStepChange(1)
     }).finally(() => {
       this.loading = false
     })
@@ -155,90 +193,150 @@ struct Register {
 
   build() {
     Column() {
-      Row() {
-        Text('←')
-          .fontSize(22)
-          .fontColor(AuthTheme.PRIMARY)
-          .width(40)
-          .onClick(() => {
-            if (this.loading) {
-              return
-            }
-            if (this.registerStep === 2) {
-              this.registerStep = 1
-            } else {
-              UiHelper.goBack()
-            }
-          })
-
-        Text('创建你的心灵账号')
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(AuthTheme.PRIMARY)
-          .layoutWeight(1)
-          .textAlign(TextAlign.Center)
-
-        Blank()
-          .width(40)
-      }
-      .width('100%')
-      .padding({ left: 16, right: 16, top: 12 })
-
-      Row({ space: 0 }) {
-        this.buildStepPill('1 账号信息', this.registerStep === 1)
-        Row()
-          .layoutWeight(1)
-          .height(2)
-          .backgroundColor(this.registerStep >= 2 ? AuthTheme.PRIMARY : '#E0E8EF')
-          .margin({ left: 8, right: 8, top: 18 })
-        this.buildStepPill('2 个人资料', this.registerStep === 2)
-      }
-      .width('100%')
-      .padding({ left: 24, right: 24, top: 20 })
-
-      Scroll() {
-        Column({ space: 16 }) {
-          Column({ space: 14 }) {
-            if (this.registerStep === 1) {
-              this.buildAccountStep()
-            } else {
-              this.buildProfileStep()
-            }
-          }
-          .width('100%')
-          .padding(24)
-          .backgroundColor(Color.White)
-          .borderRadius(32)
-          .shadow({ radius: 20, color: 'rgba(30, 74, 122, 0.08)', offsetY: 8 })
-
-          Column({ space: 8 }) {
-            Stack() {
-              Circle()
-                .width(72)
-                .height(72)
-                .fill(Color.White)
-              Image($r('app.media.app_logo'))
-                .width(60)
-                .height(60)
-                .objectFit(ImageFit.Contain)
-            }
-            Text('校园心灵墙 · 温暖每一刻')
-              .fontSize(12)
-              .fontColor('#5F6F7A')
-          }
-          .width('100%')
-          .alignItems(HorizontalAlign.Center)
-          .margin({ top: 8, bottom: 32 })
+      AuthScaffold({
+        heroHeight: 200,
+        hero: () => {
+          this.buildHeader()
+        },
+        body: () => {
+          this.buildBody()
         }
-        .width('100%')
-        .padding({ left: 20, right: 20, top: 8 })
-      }
-      .layoutWeight(1)
-      .scrollBar(BarState.Off)
+      })
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(AuthTheme.REGISTER_BG)
+  }
+
+  @Builder
+  buildHeader() {
+    Column({ space: 16 }) {
+      Row() {
+        Row({ space: 6 }) {
+          Text('←')
+            .fontSize(20)
+            .fontColor(Color.White)
+          Text('返回')
+            .fontSize(14)
+            .fontColor(AuthTheme.SUBTITLE)
+        }
+        .padding({ left: 4, right: 12, top: 8, bottom: 8 })
+        .borderRadius(20)
+        .backgroundColor('rgba(255,255,255,0.18)')
+        .onClick(() => {
+          if (this.loading) {
+            return
+          }
+          if (this.registerStep === 2) {
+            this.animateStepChange(1)
+          } else {
+            UiHelper.goBack()
+          }
+        })
+
+        Blank()
+      }
+      .width('100%')
+
+      Column({ space: 8 }) {
+        Text('创建心灵账号')
+          .fontSize(26)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(AuthTheme.TITLE)
+          .letterSpacing(1)
+          .shadow({ radius: 6, color: 'rgba(0,0,0,0.2)', offsetY: 2 })
+
+        Text(this.registerStep === 1 ? '填写联系方式，开启温暖社区' : '挑选头像与昵称，让大家认识你')
+          .fontSize(13)
+          .fontColor(AuthTheme.SUBTITLE)
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+
+      this.buildStepProgress()
+    }
+    .width('100%')
+    .opacity(this.headerOpacity)
+    .translate({ y: this.headerOffsetY })
+  }
+
+  @Builder
+  buildStepProgress() {
+    Column({ space: 10 }) {
+      Row() {
+        Text('账号信息')
+          .fontSize(12)
+          .fontWeight(this.registerStep === 1 ? FontWeight.Bold : FontWeight.Normal)
+          .fontColor(this.registerStep === 1 ? AuthTheme.PRIMARY_DARK : AuthTheme.LINK_MUTED)
+        Blank()
+        Text('个人资料')
+          .fontSize(12)
+          .fontWeight(this.registerStep === 2 ? FontWeight.Bold : FontWeight.Normal)
+          .fontColor(this.registerStep === 2 ? AuthTheme.PRIMARY_DARK : AuthTheme.LINK_MUTED)
+      }
+      .width('100%')
+
+      Stack({ alignContent: Alignment.Start }) {
+        Row()
+          .width('100%')
+          .height(6)
+          .borderRadius(3)
+          .backgroundColor('rgba(255,255,255,0.35)')
+
+        Row()
+          .width(`${this.progressWidth}%`)
+          .height(6)
+          .borderRadius(3)
+          .linearGradient({
+            angle: 90,
+            colors: [[AuthTheme.ACCENT, 0.0], [AuthTheme.GRADIENT_START, 1.0]]
+          })
+          .animation({ duration: 400, curve: Curve.FastOutSlowIn })
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .padding(16)
+    .backgroundColor('rgba(255,255,255,0.22)')
+    .borderRadius(18)
+    .border({ width: 1, color: 'rgba(255,255,255,0.35)' })
+  }
+
+  @Builder
+  buildBody() {
+    Column({ space: 16 }) {
+      AuthGlassCard({
+        cardOpacity: this.cardOpacity,
+        cardOffsetY: this.cardOffsetY,
+        content: () => {
+          this.buildCardContent()
+        }
+      })
+
+      Text('校园心灵墙 · 温暖每一刻')
+        .fontSize(12)
+        .fontColor(AuthTheme.LINK_MUTED)
+        .width('100%')
+        .textAlign(TextAlign.Center)
+        .opacity(this.cardOpacity)
+    }
+    .width('100%')
+  }
+
+  @Builder
+  buildCardContent() {
+    Column({ space: 16 }) {
+      Column({ space: 14 }) {
+        if (this.registerStep === 1) {
+          this.buildAccountStep()
+        } else {
+          this.buildProfileStep()
+        }
+      }
+      .width('100%')
+      .opacity(this.stepOpacity)
+      .translate({ x: this.stepOffsetX })
+    }
+    .width('100%')
   }
 
   @Builder
@@ -265,15 +363,13 @@ struct Register {
       }
       .layoutWeight(1)
 
-      Button(this.sendingCode ? '发送中' : (this.resendSeconds > 0 ? `${this.resendSeconds}s` : '获取验证码'))
-        .width(108)
-        .height(44)
-        .fontSize(12)
-        .fontColor(Color.White)
-        .backgroundColor(this.resendSeconds > 0 || this.sendingCode ? '#9AB8D8' : AuthTheme.PRIMARY)
-        .borderRadius(12)
-        .enabled(!this.sendingCode && this.resendSeconds === 0)
-        .onClick(() => this.sendEmailCode())
+      AuthCodeButton({
+        label: this.sendingCode ? '发送中' : (this.resendSeconds > 0 ? `${this.resendSeconds}s` : '获取验证码'),
+        buttonEnabled: !this.sendingCode && this.resendSeconds === 0,
+        onTap: () => {
+          this.sendEmailCode()
+        }
+      })
     }
     .alignItems(VerticalAlign.Top)
 
@@ -296,37 +392,33 @@ struct Register {
       Text() {
         Span('我已阅读并同意')
           .fontSize(12)
-          .fontColor('#5F6F7A')
+          .fontColor(AuthTheme.LINK_MUTED)
         Span('《用户协议》')
           .fontSize(12)
           .fontColor(AuthTheme.PRIMARY)
         Span('与')
           .fontSize(12)
-          .fontColor('#5F6F7A')
+          .fontColor(AuthTheme.LINK_MUTED)
         Span('《隐私政策》')
           .fontSize(12)
           .fontColor(AuthTheme.PRIMARY)
         Span('，愿共建温暖社区。')
           .fontSize(12)
-          .fontColor('#5F6F7A')
+          .fontColor(AuthTheme.LINK_MUTED)
       }
       .layoutWeight(1)
     }
     .alignItems(VerticalAlign.Top)
     .margin({ top: 4 })
 
-    Button('下一步')
-      .width('100%')
-      .height(50)
-      .fontSize(16)
-      .fontWeight(FontWeight.Bold)
-      .fontColor(Color.White)
-      .backgroundColor(AuthTheme.PRIMARY)
-      .borderRadius(25)
-      .margin({ top: 8 })
-      .onClick(() => this.goNextStep())
+    AuthPrimaryButton({
+      label: '下一步',
+      onTap: () => {
+        this.goNextStep()
+      }
+    })
 
-    Row() {
+    Row({ space: 4 }) {
       Text('已有账号？')
         .fontSize(13)
         .fontColor(AuthTheme.LINK_MUTED)
@@ -340,7 +432,7 @@ struct Register {
     }
     .width('100%')
     .justifyContent(FlexAlign.Center)
-    .margin({ top: 4, bottom: 8 })
+    .margin({ top: 4 })
   }
 
   private pickCustomAvatar(): void {
@@ -358,49 +450,66 @@ struct Register {
   @Builder
   buildProfileStep() {
     Text('选择你的头像')
-      .fontSize(14)
-      .fontWeight(FontWeight.Medium)
-      .fontColor('#4A5A66')
+      .fontSize(15)
+      .fontWeight(FontWeight.Bold)
+      .fontColor(AuthTheme.PRIMARY_DARK)
       .width('100%')
 
-    Row({ space: 12 }) {
-      if (this.pickedImageUri.length > 0) {
-        Image(this.pickedImageUri)
-          .width(56)
-          .height(56)
-          .borderRadius(28)
-          .objectFit(ImageFit.Cover)
-          .border({ width: 2, color: AuthTheme.PRIMARY })
-      } else {
-        UserAvatar({
-          avatarKey: this.selectedAvatarKey,
-          avatarSize: 56
-        })
+    Row({ space: 14 }) {
+      Stack() {
+        if (this.pickedImageUri.length > 0) {
+          Image(this.pickedImageUri)
+            .width(68)
+            .height(68)
+            .borderRadius(34)
+            .objectFit(ImageFit.Cover)
+        } else {
+          UserAvatar({
+            avatarKey: this.selectedAvatarKey,
+            avatarSize: 68
+          })
+        }
+
+        Circle()
+          .width(76)
+          .height(76)
+          .fill(Color.Transparent)
+          .stroke(AuthTheme.PRIMARY_LIGHT)
+          .strokeWidth(2)
       }
-      Column({ space: 6 }) {
+
+      Column({ space: 8 }) {
         Text('从相册选择')
-          .fontSize(13)
+          .fontSize(14)
           .fontWeight(FontWeight.Bold)
           .fontColor(AuthTheme.PRIMARY)
+          .padding({ left: 14, right: 14, top: 8, bottom: 8 })
+          .backgroundColor(AuthTheme.ACCENT_SOFT)
+          .borderRadius(16)
           .onClick(() => {
             this.pickCustomAvatar()
           })
+
         if (this.pickedImageUri.length > 0) {
           Text('清除本地照片')
             .fontSize(12)
-            .fontColor('#D86A3D')
+            .fontColor('#C45C3A')
             .onClick(() => {
               this.pickedImageUri = ''
             })
         }
       }
       .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
     }
     .width('100%')
+    .padding(12)
+    .backgroundColor('rgba(255,255,255,0.45)')
+    .borderRadius(20)
 
     Text('或选择预设头像')
       .fontSize(12)
-      .fontColor('#95A19F')
+      .fontColor(AuthTheme.LINK_MUTED)
       .width('100%')
 
     Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
@@ -413,10 +522,20 @@ struct Register {
           .border({
             width: this.selectedAvatarKey === key && this.pickedImageUri.length === 0 ? 3 : 1,
             color: this.selectedAvatarKey === key && this.pickedImageUri.length === 0
-              ? AuthTheme.PRIMARY : '#E8EEF3'
+              ? AuthTheme.PRIMARY : 'rgba(255,255,255,0.8)'
+          })
+          .shadow({
+            radius: this.selectedAvatarKey === key && this.pickedImageUri.length === 0 ? 10 : 4,
+            color: 'rgba(46, 107, 94, 0.2)',
+            offsetY: 3
           })
           .width('23%')
           .margin({ bottom: 12 })
+          .scale({
+            x: this.selectedAvatarKey === key && this.pickedImageUri.length === 0 ? 1.06 : 1,
+            y: this.selectedAvatarKey === key && this.pickedImageUri.length === 0 ? 1.06 : 1
+          })
+          .animation({ duration: 200, curve: Curve.EaseOut })
           .onClick(() => {
             this.selectedAvatarKey = key
             this.pickedImageUri = ''
@@ -431,27 +550,24 @@ struct Register {
       value: $nickname
     })
 
-    Button(this.loading ? '注册中...' : '完成注册')
-      .width('100%')
-      .height(50)
-      .fontSize(16)
-      .fontWeight(FontWeight.Bold)
-      .fontColor(Color.White)
-      .backgroundColor(this.loading ? '#7BA3D4' : AuthTheme.PRIMARY)
-      .borderRadius(25)
-      .margin({ top: 8 })
-      .enabled(!this.loading)
-      .onClick(() => this.handleRegister())
+    AuthPrimaryButton({
+      label: '完成注册',
+      loading: this.loading,
+      buttonEnabled: !this.loading,
+      onTap: () => {
+        this.handleRegister()
+      }
+    })
 
-    Text('上一步')
+    Text('← 上一步')
       .fontSize(13)
       .fontColor(AuthTheme.PRIMARY)
       .width('100%')
       .textAlign(TextAlign.Center)
-      .margin({ top: 8, bottom: 8 })
+      .margin({ top: 4 })
       .onClick(() => {
         if (!this.loading) {
-          this.registerStep = 1
+          this.animateStepChange(1)
         }
       })
   }
@@ -461,18 +577,8 @@ struct Register {
     Text(label)
       .fontSize(13)
       .fontWeight(FontWeight.Medium)
-      .fontColor('#4A5A66')
+      .fontColor(AuthTheme.PRIMARY_DARK)
       .width('100%')
-  }
-
-  @Builder
-  buildStepPill(text: string, active: boolean) {
-    Text(text)
-      .fontSize(12)
-      .fontWeight(FontWeight.Medium)
-      .fontColor(active ? Color.White : '#9AA8B5')
-      .padding({ left: 16, right: 16, top: 10, bottom: 10 })
-      .backgroundColor(active ? AuthTheme.PRIMARY : '#E8EEF3')
-      .borderRadius(20)
+      .margin({ top: 4 })
   }
 }
