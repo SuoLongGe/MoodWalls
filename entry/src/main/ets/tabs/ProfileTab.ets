@@ -30,7 +30,7 @@ export struct ProfileTab {
   @StorageLink('userAvatarKey') userAvatarKey: string = 'avatar_01'
   @StorageLink('userAvatarUrl') userAvatarUrl: string = ''
   @Prop @Watch('onProfileRefreshTick') profileRefreshTick: number = 0
-  onOpenReport: (report: string) => void = () => {}
+  @State weeklyReportLoading: boolean = false
 
   @State showEditProfile: boolean = false
   @State editNickname: string = ''
@@ -187,7 +187,7 @@ export struct ProfileTab {
 
   private fetchMoodStats(): void {
     this.moodStatsLoading = true
-    PostApi.getMoodStats(this.moodPeriod).then((res) => {
+    PostApi.getMoodStats(this.moodPeriod, AuthSession.getToken()).then((res) => {
       this.moodStats = res.items
       this.moodStatsLoading = false
     }).catch((err: Error) => {
@@ -381,11 +381,18 @@ export struct ProfileTab {
   }
 
   openWeeklyReport(): void {
+    if (this.weeklyReportLoading) {
+      return
+    }
+    this.weeklyReportLoading = true
     ProfileApi.getWeeklyReport().then((result) => {
-      this.onOpenReport(result.report)
       NotificationStore.refreshUnreadCount()
+      UiHelper.showToast('周报已生成，请在通知中查看')
+      UiHelper.pushTo('pages/NotificationPage')
     }).catch((err: Error) => {
-      UiHelper.showToast(err.message)
+      UiHelper.showToast(err.message || '周报生成失败')
+    }).finally(() => {
+      this.weeklyReportLoading = false
     })
   }
 
@@ -1089,11 +1096,30 @@ export struct ProfileTab {
               }, (item: MoodStatItem) => `${this.moodPeriod}-${item.mood}`)
             }
           }
-          Text('翻开温情周报')
-            .fontSize(13)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#31534A')
+          if (this.weeklyReportLoading) {
+            Row({ space: 6 }) {
+              LoadingProgress()
+                .width(14)
+                .height(14)
+                .color('#31534A')
+              Text('生成中，生成完成后在通知中查看')
+                .fontSize(12)
+                .fontColor('#6E7C79')
+            }
+            .padding({ top: 12, bottom: 4 })
+          } else {
+            Button() {
+              Text('📋 翻开温情周报')
+                .fontSize(14)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(Color.White)
+            }
+            .type(ButtonType.Capsule)
+            .backgroundColor('#73A18F')
+            .padding({ left: 24, right: 24, top: 10, bottom: 10 })
+            .margin({ top: 12 })
             .onClick(() => this.openWeeklyReport())
+          }
         }
         .width('100%')
         .padding(16)

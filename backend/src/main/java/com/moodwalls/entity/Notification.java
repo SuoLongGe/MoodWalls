@@ -26,7 +26,7 @@ public class Notification {
     @Column(nullable = false, length = 128)
     private String title;
 
-    @Column(nullable = false, length = 512)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
     @Column(name = "ref_type", length = 32)

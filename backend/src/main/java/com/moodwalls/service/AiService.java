@@ -28,8 +28,12 @@ import java.util.function.Consumer;
 public class AiService {
 
     private static final Logger log = LoggerFactory.getLogger(AiService.class);
-    private static final String SYSTEM_PROMPT = "你是校园心理关怀助手「校园倾听树洞」，用温暖、简短、口语化中文回应，不说教。";
-    private static final String WEEKLY_SYSTEM_PROMPT = "你是校园心理关怀助手「校园倾听树洞」，请根据用户本周的情绪数据，生成一段温暖、有洞察力的周报小结，120-200字，口语化，像朋友聊天一样。";
+    private static final String SYSTEM_PROMPT = "你是校园心理关怀助手「校园倾听树洞」，用温暖、简短、口语化中文回应，不说教。不要添加任何解释、注释或对自身回复的分析。";
+    private static final String WEEKLY_SYSTEM_PROMPT = "你是校园心理关怀助手「校园倾听树洞」。请根据用户本周的情绪数据，生成一份温暖、深入、有洞察力的情绪周报。" +
+            "周报应该像一位懂你的朋友在认真谈心，字数不少于200字，可以展开到350字。" +
+            "内容应包含：1) 本周情绪整体回顾与共鸣 2) 对关键情绪时刻的细致解读 3) 温和的鼓励与下周展望。" +
+            "不要只是简单总结数据，要结合帖子内容给出有温度的分析和陪伴感。" +
+            "请在合适的位置自然地使用 emoji（如😊💪🌈☀️🍃🌙💤），让周报更有温度，但不要堆砌。";
     /** Level 2: extreme danger — self-harm / suicidal ideation */
     private static final List<String> CRISIS_KEYWORDS = List.of(
             "不想活了", "自杀", "自残", "自伤", "结束生命", "活不下去",
@@ -104,7 +108,7 @@ public class AiService {
     public WeeklyReportResponse generateWeeklyReport(Long userId, String nickname, List<Post> recentPosts,
                                                        Map<String, Long> moodCounts, long postCount) {
         String prompt = buildWeeklyReportPrompt(nickname, postCount, moodCounts, recentPosts);
-        String report = callAi(prompt, WEEKLY_SYSTEM_PROMPT, 400);
+        String report = callAi(prompt, WEEKLY_SYSTEM_PROMPT, 800);
         StringBuilder moodSummary = new StringBuilder();
         moodCounts.forEach((mood, count) -> moodSummary.append(moodLabel(mood)).append(count).append("次 "));
         int riskLevel = detectRiskLevel(moodSummary.toString());
@@ -146,7 +150,10 @@ public class AiService {
         }
 
         return String.format(
-                "用户「%s」这一周发了%d条心情帖。\n情绪分布：%s\n部分帖子内容：\n%s\n请根据以上数据，生成一段个性化的周报小结，120-200字，口语化，像朋友在聊天。",
+                "用户「%s」这一周发了%d条心情帖。\n情绪分布：%s\n部分帖子内容：\n%s\n请根据以上数据，生成一份有深度、有温度的周报。" +
+                        "要求：1) 先整体回顾本周情绪状态 2) 结合具体的帖子内容做细致解读 3) 给出真诚的鼓励和下周小建议。" +
+                        "至少写200字，可以展开到350字。不要草草了事，语气像朋友谈心，温暖但不敷衍。" +
+                        "周报结尾请署名「——心墙」，除此之外不要添加任何注释、备注或「注」。",
                 nickname, postCount, moodSummary.toString(), contentSnippets.toString());
     }
 
@@ -155,10 +162,11 @@ public class AiService {
     }
 
     private String callAi(String userPrompt, String systemPrompt, int maxTokens) {
-        if (apiKey.isEmpty()) {
-            log.warn("AI API key not configured, using fallback response");
+        if (apiKey == null || apiKey.isEmpty()) {
+            log.warn("AI API key not configured, using fallback response. apiKey={}", apiKey);
             return FALLBACK_RESPONSE;
         }
+        log.info("AI call - model={}, maxTokens={}, prompt length={}", model, maxTokens, userPrompt.length());
 
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -183,12 +191,14 @@ public class AiService {
                 if (choices != null && !choices.isEmpty()) {
                     Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
                     if (message != null) {
-                        return (String) message.get("content");
+                        String content = (String) message.get("content");
+                        log.info("AI response received, length={}", content != null ? content.length() : 0);
+                        return content;
                     }
                 }
             }
         } catch (Exception e) {
-            log.error("AI API call failed", e);
+            log.error("AI API call failed: {}", e.getMessage(), e);
         }
         return FALLBACK_RESPONSE;
     }

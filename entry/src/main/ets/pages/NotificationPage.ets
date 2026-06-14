@@ -5,6 +5,7 @@ import { UiHelper } from '../common/UiHelper'
 import { PageHeader } from '../components/PageHeader'
 import { MoodApi } from '../service/MoodApi'
 import { NotificationItem } from '../model/MoodWallTypes'
+import { promptAction } from '@kit.ArkUI'
 
 @Entry
 @Component
@@ -161,7 +162,11 @@ struct NotificationPage {
     }
 
     if (item.type === 'weekly_report') {
-      UiHelper.showToast('请在「我的」页查看温情周报')
+      promptAction.showDialog({
+        title: '本周情绪周报',
+        message: item.content,
+        buttons: [{ text: '知道了', color: '#31534A' }]
+      })
       return
     }
 

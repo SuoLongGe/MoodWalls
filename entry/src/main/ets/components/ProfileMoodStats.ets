@@ -1,5 +1,6 @@
 import { MoodStatItem } from '../model/MoodWallTypes'
 import { PostApi } from '../service/PostApi'
+import { AuthSession } from '../common/AuthSession'
 
 type StatsPeriod = 'today' | 'week' | 'month'
 
@@ -23,7 +24,7 @@ export struct ProfileMoodStats {
 
   fetchMoodStats(): void {
     this.statsLoading = true
-    PostApi.getMoodStats(this.selectedPeriod).then((res) => {
+    PostApi.getMoodStats(this.selectedPeriod, AuthSession.getToken()).then((res) => {
       this.moodStats = res.items
       this.statsLoading = false
     }).catch((err: Error) => {

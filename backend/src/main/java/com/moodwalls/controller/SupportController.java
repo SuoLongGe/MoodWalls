@@ -108,7 +108,7 @@ public class SupportController {
         notif.setUserId(userId);
         notif.setType("weekly_report");
         notif.setTitle("本周情绪周报已生成");
-        notif.setContent(report.report().substring(0, Math.min(report.report().length(), 128)));
+        notif.setContent(report.report());
         notif.setRefType("report");
         notif.setRefId(null);
         notif.setIsRead(0);

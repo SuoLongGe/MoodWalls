@@ -351,13 +351,13 @@ export class PostApi {
       })
   }
 
-  static getTodayStats(): Promise<TodayStatsResponse> {
-    return HttpClient.get<TodayStatsResponse>('/stats/today')
+  static getTodayStats(token?: string): Promise<TodayStatsResponse> {
+    return HttpClient.get<TodayStatsResponse>('/stats/today', token)
   }
 
-  static getMoodStats(period: string): Promise<MoodStatsResponse> {
+  static getMoodStats(period: string, token?: string): Promise<MoodStatsResponse> {
     const query: string = encodeURIComponent(period)
-    return HttpClient.get<object>(`/stats/moods?period=${query}`)
+    return HttpClient.get<object>(`/stats/moods?period=${query}`, token)
       .then((payload: object) => PostApi.mapMoodStatsPayload(payload, period))
   }
 

@@ -125,19 +125,24 @@ public class PostController {
     }
 
     @GetMapping("/stats/today")
-    public ApiResponse<TodayStatsDto> getTodayStats() {
-        TodayStatsDto result = postService.getTodayStats();
+    public ApiResponse<TodayStatsDto> getTodayStats(
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        Long userId = tokenUtil.extractUserIdOrNull(authorization);
+        TodayStatsDto result = postService.getTodayStats(userId);
         return ApiResponse.ok(result);
     }
 
     /**
      * 校园心墙情绪占比：按时间段统计各 mood 发帖占比，仅返回有帖子的情绪类型。
      * period: today | week | month
+     * 传 Authorization 则按当前用户过滤，否则统计全部。
      */
     @GetMapping("/stats/moods")
     public ApiResponse<MoodStatsDto> getMoodStats(
-            @RequestParam(value = "period", defaultValue = "today") String period) {
-        MoodStatsDto result = postService.getMoodStats(period);
+            @RequestParam(value = "period", defaultValue = "today") String period,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        Long userId = tokenUtil.extractUserIdOrNull(authorization);
+        MoodStatsDto result = postService.getMoodStatsForUser(period, userId);
         return ApiResponse.ok(result);
     }
 

@@ -294,8 +294,8 @@ public class PostService {
         };
     }
 
-    public TodayStatsDto getTodayStats() {
-        MoodStatsDto stats = getMoodStats("today");
+    public TodayStatsDto getTodayStats(Long userId) {
+        MoodStatsDto stats = getMoodStatsForUser("today", userId);
         long anxious = 0;
         long calm = 0;
         long happy = 0;
@@ -318,10 +318,19 @@ public class PostService {
     }
 
     public MoodStatsDto getMoodStats(String periodParam) {
+        return getMoodStatsForUser(periodParam, null);
+    }
+
+    public MoodStatsDto getMoodStatsForUser(String periodParam, Long userId) {
         String period = normalizeStatsPeriod(periodParam);
         LocalDateTime since = resolveStatsPeriodStart(period);
-        List<Object[]> moodCounts = postRepository.countByMoodSince(since);
-        long total = postRepository.countActiveSince(since);
+        final boolean filterUser = userId != null;
+        List<Object[]> moodCounts = filterUser
+                ? postRepository.countByMoodForUserSince(userId, since)
+                : postRepository.countByMoodSince(since);
+        long total = filterUser
+                ? postRepository.countActiveByUserSince(userId, since)
+                : postRepository.countActiveSince(since);
 
         List<MoodStatItemDto> items = new ArrayList<>();
         for (Object[] row : moodCounts) {

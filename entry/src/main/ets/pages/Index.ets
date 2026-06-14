@@ -470,13 +470,7 @@ struct Index {
                     })
                   } else {
                     ProfileTab({
-                      profileRefreshTick: this.profileRefreshTick,
-                      onOpenReport: (report: string) => {
-                        this.supportTitle = '这一周的心情周报'
-                        this.supportMessage = report
-                        this.supportVisible = true
-                        this.refreshUnreadCount()
-                      }
+                      profileRefreshTick: this.profileRefreshTick
                     })
                   }
                 }

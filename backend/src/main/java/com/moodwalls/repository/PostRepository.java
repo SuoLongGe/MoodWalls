@@ -36,11 +36,17 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT COUNT(p) FROM Post p WHERE p.status = 1 AND p.visibility = 1 AND p.createdAt >= :since")
     long countActiveSince(@Param("since") LocalDateTime since);
 
+    @Query("SELECT COUNT(p) FROM Post p WHERE p.userId = :userId AND p.status = 1 AND p.visibility = 1 AND p.createdAt >= :since")
+    long countActiveByUserSince(@Param("userId") Long userId, @Param("since") LocalDateTime since);
+
     @Query("SELECT p.zoneKey, COUNT(p) as cnt FROM Post p WHERE p.status = 1 AND p.visibility = 1 AND p.createdAt >= :since GROUP BY p.zoneKey")
     List<Object[]> countByZoneSince(@Param("since") LocalDateTime since);
 
     @Query("SELECT p.mood, COUNT(p) as cnt FROM Post p WHERE p.status = 1 AND p.visibility = 1 AND p.createdAt >= :since GROUP BY p.mood")
     List<Object[]> countByMoodSince(@Param("since") LocalDateTime since);
+
+    @Query("SELECT p.mood, COUNT(p) as cnt FROM Post p WHERE p.userId = :userId AND p.status = 1 AND p.visibility = 1 AND p.createdAt >= :since GROUP BY p.mood")
+    List<Object[]> countByMoodForUserSince(@Param("userId") Long userId, @Param("since") LocalDateTime since);
 
     @Query("SELECT p.zoneKey, p.mood, COUNT(p) FROM Post p WHERE p.status = 1 AND p.visibility = 1 AND p.zoneKey IS NOT NULL AND p.createdAt >= :since GROUP BY p.zoneKey, p.mood")
     List<Object[]> countByZoneAndMoodSince(@Param("since") LocalDateTime since);
